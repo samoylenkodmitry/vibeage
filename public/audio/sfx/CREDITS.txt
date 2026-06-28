@@ -3,8 +3,11 @@ Creative Commons CC0 1.0 (public domain) — free for any use, no attribution
 required. Credit kept here as good practice.
 
 Packs used:
-  - Impact Sounds   — https://kenney.nl/assets/impact-sounds
-  - Sci-Fi Sounds   — https://kenney.nl/assets/sci-fi-sounds
-  - RPG Audio       — https://kenney.nl/assets/rpg-audio
+  - Impact Sounds     — https://kenney.nl/assets/impact-sounds
+  - Sci-Fi Sounds     — https://kenney.nl/assets/sci-fi-sounds
+  - RPG Audio         — https://kenney.nl/assets/rpg-audio
+  - Interface Sounds  — https://kenney.nl/assets/interface-sounds
 
 License: https://creativecommons.org/publicdomain/zero/1.0/
+
+Looping ambient beds live in ../ambient (see ../ambient/CREDITS.txt).

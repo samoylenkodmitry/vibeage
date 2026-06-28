@@ -27,6 +27,27 @@ export const KILL_BODY_SAMPLES = [
 export const LOOT_SAMPLES = [`${BASE}/handleCoins.ogg`, `${BASE}/handleCoins2.ogg`];
 export const UI_SAMPLES = [`${BASE}/metalClick.ogg`];
 
+/**
+ * Single-shot clips for the HUD / status cues (Kenney *Interface Sounds*),
+ * chosen by their semantic name (maximize = rising, minimize = falling,
+ * confirmation = positive ding, error = negative buzz, …). The cue → layer
+ * mapping lives in audio/cues.ts; these are just the raw files.
+ */
+export const CUE_CLIPS = {
+  error: `${BASE}/error_002.ogg`,
+  confirm: `${BASE}/confirmation_001.ogg`,
+  maximizeBright: `${BASE}/maximize_004.ogg`,
+  maximizeSoft: `${BASE}/maximize_002.ogg`,
+  pluck: `${BASE}/pluck_002.ogg`,
+  bong: `${BASE}/bong_001.ogg`,
+  minimizeDown: `${BASE}/minimize_004.ogg`,
+  minimizeShort: `${BASE}/minimize_001.ogg`,
+  select: `${BASE}/select_005.ogg`,
+} as const;
+
+/** The cast "charge" — a sci-fi force-field energy swell, pitched per element + skill (see skillAudio). */
+export const WINDUP_CHARGE_SAMPLES = [`${BASE}/forceField_002.ogg`, `${BASE}/forceField_003.ogg`];
+
 /** Element → impact clip set. Non-elemental skills (undefined) use physical. */
 const ELEMENT_IMPACT: Record<SpellElement | 'physical', string[]> = {
   fire: [`${BASE}/explosionCrunch_000.ogg`, `${BASE}/explosionCrunch_001.ogg`],
@@ -105,9 +126,20 @@ export const SUPPORT_SPARKLE_SAMPLES = [
 /** Gain for the generic combat clips (hit / kill). */
 export const COMBAT_GAIN = 0.85;
 
-/** Every sample url — preload on the first gesture so the first hit isn't silent. */
+const BASE_AMBIENT = '/audio/ambient';
+/** Looping ambient beds (OpenGameArt CC0), cross-faded by day/night in soundscape.ts. */
+export const AMBIENT_DAY = `${BASE_AMBIENT}/forest_ambience.ogg`; // calm forest + gentle wind, by day
+export const AMBIENT_NIGHT = `${BASE_AMBIENT}/crickets.ogg`; // crickets, by night
+export const AMBIENT_URLS: readonly string[] = [AMBIENT_DAY, AMBIENT_NIGHT];
+
+/** Every one-shot sample url — preload on the first gesture so the first hit/cue isn't silent. */
 export const ALL_SFX_URLS: readonly string[] = [
   ...HIT_SAMPLES, ...KILL_SAMPLES, ...KILL_BODY_SAMPLES, ...LOOT_SAMPLES, ...UI_SAMPLES,
   ...Object.values(ELEMENT_IMPACT).flat(),
   ...Object.values(ELEMENT_TRAVEL).flat(),
+  ...Object.values(CUE_CLIPS),
+  ...WINDUP_CHARGE_SAMPLES,
 ];
+
+/** Every audio url the game ships (one-shots + ambient loops) — used by the wiki completeness test. */
+export const ALL_AUDIO_URLS: readonly string[] = [...ALL_SFX_URLS, ...AMBIENT_URLS];

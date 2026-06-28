@@ -1,5 +1,7 @@
-import type { CueId } from '../sfx';
+import { type CueId } from './cues';
 import {
+  AMBIENT_DAY,
+  AMBIENT_NIGHT,
   COMBAT_GAIN,
   HIT_SAMPLES,
   KILL_SAMPLES,
@@ -8,25 +10,24 @@ import {
   UI_SAMPLES,
   SUB_BOOM_SAMPLES,
   SUPPORT_SPARKLE_SAMPLES,
+  WINDUP_CHARGE_SAMPLES,
   impactSamplesFor,
   impactGainFor,
   travelSamplesFor,
   travelGainFor,
 } from './sampleMap';
-import { elementWindup, SPELL_ELEMENTS, SUPPORT_WINDUP, type Elem } from './skillAudio';
-import type { WindupParams } from './spellVoices';
+import { SPELL_ELEMENTS, type Elem } from './skillAudio';
 
 /**
  * The in-game **sound library** — every sound the game plays, named and grouped
- * by when you hear it (cast → travel → impact → events → UI cues). Derived from
- * the same maps the engine plays from (sampleMap / skillAudio / sfx cues), so the
- * wiki page can never drift out of sync with what actually ships. Each entry
- * carries playable `variants` so a row can be auditioned in game.
+ * by when you hear it (cast → travel → impact → events → cues → ambient). All
+ * real CC0 samples now (no synthesis). Derived from the same maps the engine
+ * plays from (sampleMap / skillAudio / cues), so the wiki page can never drift
+ * out of sync with what actually ships. Each entry carries playable `variants`.
  */
 
 export type SoundPreview =
   | { kind: 'sample'; urls: readonly string[]; gain: number }
-  | { kind: 'windup'; params: WindupParams }
   | { kind: 'cue'; cue: CueId };
 
 export type SoundVariant = { name: string; preview: SoundPreview };
@@ -35,8 +36,8 @@ export type SoundEntry = {
   id: string;
   title: string;
   detail: string;
-  /** true = synthesized on the fly (no asset file); false = a recorded .ogg sample. */
-  synth: boolean;
+  /** Short badge: how it's played — 'spatial', 'ui', or 'loop'. */
+  tag: string;
   variants: SoundVariant[];
 };
 
@@ -60,25 +61,18 @@ const ELEMENT_LABEL: Record<Elem, string> = {
   physical: 'Physical — blunt, non-elemental',
 };
 
-// --- Phase 1: cast windups (synth) -----------------------------------------
+// --- Phase 1: cast charge (sample) -----------------------------------------
 const castGroup: SoundGroup = {
   id: 'cast',
-  title: 'Cast — windup (synth)',
-  blurb: 'The rising charge synthesized as a spell is cast, before it flies. Tinted per element; pitched per skill in game.',
+  title: 'Cast — charge (sample)',
+  blurb: 'A sci-fi energy charge as a spell is cast — pitched lower for fire/poison, higher for ice/holy, plus a per-skill detune.',
   entries: [
-    ...SPELL_ELEMENTS.map((e): SoundEntry => ({
-      id: `cast-${e}`,
-      title: ELEMENT_LABEL[e],
-      detail: 'Cast windup',
-      synth: true,
-      variants: [{ name: `${e} windup`, preview: { kind: 'windup', params: elementWindup(e) } }],
-    })),
     {
-      id: 'cast-support',
-      title: 'Heal / buff — uplifting swell',
-      detail: 'Cast windup for support skills (soft, no harsh charge)',
-      synth: true,
-      variants: [{ name: 'support windup', preview: { kind: 'windup', params: SUPPORT_WINDUP } }],
+      id: 'cast-charge',
+      title: 'Cast charge',
+      detail: 'One charge sample, pitched per element & per skill in game',
+      tag: 'spatial',
+      variants: sampleVariants(WINDUP_CHARGE_SAMPLES, 0.3),
     },
   ],
 };
@@ -92,7 +86,7 @@ const travelGroup: SoundGroup = {
     id: `travel-${e}`,
     title: ELEMENT_LABEL[e],
     detail: 'In-flight whoosh',
-    synth: false,
+    tag: 'spatial',
     variants: sampleVariants(travelSamplesFor(e), travelGainFor(e)),
   })),
 };
@@ -107,21 +101,21 @@ const impactGroup: SoundGroup = {
       id: `impact-${e}`,
       title: ELEMENT_LABEL[e],
       detail: 'Spell impact',
-      synth: false,
+      tag: 'spatial',
       variants: sampleVariants(impactSamplesFor(e), impactGainFor(e)),
     })),
     {
       id: 'impact-subboom',
       title: 'Heavy sub-boom (layer)',
       detail: 'Deep boom layered under heavy & fire impacts for weight',
-      synth: false,
+      tag: 'spatial',
       variants: sampleVariants(SUB_BOOM_SAMPLES, 0.5),
     },
     {
       id: 'impact-support',
       title: 'Heal / buff sparkle',
       detail: 'A bright, quiet sparkle for a support skill settling on an ally',
-      synth: false,
+      tag: 'spatial',
       variants: sampleVariants(SUPPORT_SPARKLE_SAMPLES, 0.4),
     },
   ],
@@ -137,64 +131,89 @@ const eventsGroup: SoundGroup = {
       id: 'event-hit',
       title: 'Hit',
       detail: 'A landed melee / basic-attack hit',
-      synth: false,
+      tag: 'spatial',
       variants: sampleVariants(HIT_SAMPLES, COMBAT_GAIN),
     },
     {
       id: 'event-kill',
       title: 'Kill (layered)',
       detail: 'A mob dies — deep explosion + soft body thud, layered through one voice',
-      synth: false,
+      tag: 'spatial',
       variants: [...sampleVariants(KILL_SAMPLES, 0.55), ...sampleVariants(KILL_BODY_SAMPLES, COMBAT_GAIN)],
     },
     {
       id: 'event-loot',
       title: 'Loot',
       detail: 'Coins / pickup handling',
-      synth: false,
+      tag: 'spatial',
       variants: sampleVariants(LOOT_SAMPLES, 0.7),
     },
     {
       id: 'event-ui',
       title: 'UI click',
       detail: 'Generic interface click',
-      synth: false,
+      tag: 'spatial',
       variants: sampleVariants(UI_SAMPLES, 0.7),
     },
   ],
 };
 
-// --- UI & status cues (synth) ----------------------------------------------
+// --- UI & status cues (sample) ---------------------------------------------
 const CUES: ReadonlyArray<{ cue: CueId; title: string; detail: string }> = [
   { cue: 'hurt', title: 'Hurt', detail: 'You take damage (red vignette)' },
-  { cue: 'levelUp', title: 'Level up', detail: 'Level gained / quest & boss reward fanfare' },
+  { cue: 'levelUp', title: 'Level up', detail: 'Level gained / quest & boss reward' },
   { cue: 'pickup', title: 'Pickup', detail: 'A stat or item is gained' },
   { cue: 'respawn', title: 'Respawn', detail: 'You come back to life' },
-  { cue: 'death', title: 'Death', detail: 'You die — descending thud' },
+  { cue: 'death', title: 'Death', detail: 'You die — descending tone + deep boom' },
   { cue: 'lowHealth', title: 'Low health', detail: 'Heartbeat under 20% HP' },
   { cue: 'lowMana', title: 'Low mana', detail: 'Under 20% mana (casters)' },
   { cue: 'bossTelegraph', title: 'Boss telegraph', detail: 'A boss winds up a dangerous attack' },
   { cue: 'chat', title: 'Chat', detail: 'A chat message arrives' },
-  { cue: 'hit', title: 'Hit (synth)', detail: 'Legacy synth hit blip' },
-  { cue: 'kill', title: 'Kill (synth)', detail: 'Legacy synth kill blip' },
+  { cue: 'hit', title: 'Hit (cue)', detail: 'Legacy generic-hit cue' },
+  { cue: 'kill', title: 'Kill (cue)', detail: 'Legacy kill cue — a low resonant hit' },
 ];
 
 const cuesGroup: SoundGroup = {
   id: 'cues',
-  title: 'UI & status cues (synth)',
-  blurb: 'Short non-positional synth tones for HUD / status moments.',
+  title: 'UI & status cues (sample)',
+  blurb: 'Short non-positional HUD / status sounds (Kenney Interface, CC0).',
   entries: CUES.map((c): SoundEntry => ({
     id: `cue-${c.cue}`,
     title: c.title,
     detail: c.detail,
-    synth: true,
+    tag: 'ui',
     variants: [{ name: c.cue, preview: { kind: 'cue', cue: c.cue } }],
   })),
 };
 
-export const SOUND_GROUPS: readonly SoundGroup[] = [castGroup, travelGroup, impactGroup, eventsGroup, cuesGroup];
+// --- Ambient beds (looping samples) ----------------------------------------
+const ambientGroup: SoundGroup = {
+  id: 'ambient',
+  title: 'Ambient (loops)',
+  blurb: 'Looping nature beds, cross-faded by day/night (OpenGameArt CC0). Preview plays one pass.',
+  entries: [
+    {
+      id: 'ambient-day',
+      title: 'Day — forest',
+      detail: 'Calm forest ambience (gentle wind + birds), up by day',
+      tag: 'loop',
+      variants: sampleVariants([AMBIENT_DAY], 0.4),
+    },
+    {
+      id: 'ambient-night',
+      title: 'Night — crickets',
+      detail: 'Crickets, up by night',
+      tag: 'loop',
+      variants: sampleVariants([AMBIENT_NIGHT], 0.4),
+    },
+  ],
+};
 
-/** Every sample url the catalog references — used by the completeness test. */
+export const SOUND_GROUPS: readonly SoundGroup[] = [
+  castGroup, travelGroup, impactGroup, eventsGroup, cuesGroup, ambientGroup,
+];
+
+/** Every sample url the catalog references via play chips — used by the completeness test. */
 export function allCatalogSampleUrls(): string[] {
   const urls: string[] = [];
   for (const group of SOUND_GROUPS) {
@@ -207,7 +226,7 @@ export function allCatalogSampleUrls(): string[] {
   return urls;
 }
 
-/** Every synth cue the catalog references — used by the completeness test. */
+/** Every cue the catalog references — used by the completeness test. */
 export function allCatalogCueIds(): CueId[] {
   const ids: CueId[] = [];
   for (const group of SOUND_GROUPS) {

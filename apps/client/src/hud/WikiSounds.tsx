@@ -1,20 +1,18 @@
 import { useMemo } from 'react';
 import { SOUND_GROUPS, type SoundPreview } from '../audio/soundCatalog';
 import { playSample } from '../audio/samples';
-import { playWindup } from '../audio/spellVoices';
-import { playCue } from '../sfx';
+import { playCue } from '../audio/cues';
 import { FocusableLi, filterMatch } from './WikiPanel';
 
 /**
  * The Sounds tab — a browsable library of every sound the game plays, named and
- * grouped by phase (cast → travel → impact → events → cues). Each row's chips
- * play the actual sound in game so you can match a name to what you hear. Data
- * is derived from the engine's own sound maps (see audio/soundCatalog).
+ * grouped by phase (cast → travel → impact → events → cues → ambient). Each row's
+ * chips play the actual sound in game so you can match a name to what you hear.
+ * Data is derived from the engine's own sound maps (see audio/soundCatalog).
  */
 
 function preview(p: SoundPreview): void {
   if (p.kind === 'sample') playSample(p.urls, p.gain);
-  else if (p.kind === 'windup') playWindup(p.params);
   else playCue(p.cue);
 }
 
@@ -45,7 +43,7 @@ export function SoundsTab({
               <FocusableLi key={entry.id} isFocus={entry.id === focusId} focusKey={focusKey}>
                 <header>
                   <strong>{entry.title}</strong>
-                  <span className="wiki-row-tag">{entry.synth ? 'synth' : 'sample'}</span>
+                  <span className="wiki-row-tag">{entry.tag}</span>
                 </header>
                 <p>{entry.detail}</p>
                 <div className="wiki-sound-variants">

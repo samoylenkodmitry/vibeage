@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { QUESTS } from '../../../../packages/content/quests';
-import { playCue } from '../sfx';
+import { playCue } from '../audio/cues';
 
 type QuestCompleteBurstProps = {
   /** Player's completed-quests list (id strings). Watched for new entries. */

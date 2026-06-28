@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { playCue } from '../sfx';
+import { playCue } from '../audio/cues';
 
 type LowManaCueProps = {
   mana: number;

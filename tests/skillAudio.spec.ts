@@ -4,7 +4,7 @@ import {
   impactLayersFor,
   skillSemitone,
   travelLayersFor,
-  windupFor,
+  windupLayersFor,
 } from '../apps/client/src/audio/skillAudio';
 
 // The per-skill 3-phase audio is ear-verified, but the profile logic — element
@@ -27,20 +27,24 @@ describe('skillSemitone', () => {
   });
 });
 
-describe('windupFor', () => {
-  it('tints by element — fire growls (sawtooth), ice rings (triangle)', () => {
-    expect(windupFor('fireball').type).toBe('sawtooth');
-    expect(windupFor('iceBolt').type).toBe('triangle');
+describe('windupLayersFor', () => {
+  it('is one sampled energy charge (force-field), pitched per element', () => {
+    const fire = windupLayersFor('fireball');
+    expect(fire.length).toBe(1);
+    expect(fire[0].urls.some((u) => u.includes('forceField'))).toBe(true);
+    // Ice charges brighter (higher rate) than fire — the per-element character.
+    expect(windupLayersFor('iceBolt')[0].rate).toBeGreaterThan(fire[0].rate as number);
   });
 
-  it('gives heals/buffs the soft sine swell instead of a damage charge', () => {
-    const w = windupFor('greater_heal');
-    expect(w.type).toBe('sine');
+  it('gives heals/buffs a softer, quieter charge than a damage cast', () => {
+    const heal = windupLayersFor('greater_heal')[0];
+    const fire = windupLayersFor('fireball')[0];
+    expect(heal.gain).toBeLessThan(fire.gain as number);
   });
 
-  it('shifts the base frequency by the per-skill pitch', () => {
-    // Two fire skills share the palette but not the pitch → different f0.
-    expect(windupFor('fireball').f0).not.toBe(windupFor('meteor').f0);
+  it('detunes the charge per skill so two same-element casts differ', () => {
+    // Two fire skills share the palette but not the per-skill pitch → different rate.
+    expect(windupLayersFor('fireball')[0].rate).not.toBe(windupLayersFor('meteor')[0].rate);
   });
 });
 

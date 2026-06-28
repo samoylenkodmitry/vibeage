@@ -1,7 +1,6 @@
 import type { SpellElement } from '../vfx/spellFx';
 import { skillArchetype, skillThemeFor } from '../vfx/skillThemeConfig';
 import type { SampleLayer } from './samples';
-import type { WindupParams } from './spellVoices';
 import {
   impactGainFor,
   impactSamplesFor,
@@ -9,22 +8,25 @@ import {
   SUPPORT_SPARKLE_SAMPLES,
   travelGainFor,
   travelSamplesFor,
+  WINDUP_CHARGE_SAMPLES,
 } from './sampleMap';
 
 /**
  * Per-skill audio profiles, in three phases — cast (windup), travel (in-flight),
- * impact (landing). Two things make every one of the ~150 skills sound distinct
- * without hand-authoring 150 clips:
+ * impact (landing) — all real CC0 samples. Two things make every one of the ~150
+ * skills sound distinct without hand-authoring 150 clips:
  *
  *  1. a per-ELEMENT palette (fire roars, ice rings, holy chimes, …), and
  *  2. a deterministic per-SKILL pitch shift hashed from the skill id, so two
  *     fire skills never sound identical.
  *
- * Heals/buffs (skillArchetype) get an uplifting windup + a soft sparkle instead
- * of a damage slam. A few signature skills get bespoke tweaks on top.
+ * Heals/buffs (skillArchetype) get a softer, higher charge + a sparkle instead
+ * of a damage slam. A few signature skills get bespoke weight on impact.
  */
 
 export type Elem = SpellElement | 'physical';
+
+export const SPELL_ELEMENTS: readonly Elem[] = ['fire', 'ice', 'holy', 'poison', 'arcane', 'physical'];
 
 export function elementOf(skillId: string): Elem {
   return skillThemeFor(skillId).element ?? 'physical';
@@ -51,41 +53,28 @@ export function skillSemitone(skillId: string): number {
 
 const semitoneToRate = (semis: number): number => Math.pow(2, semis / 12);
 
-// --- Element windup palette (synth charge). --------------------------------
-const WINDUP: Record<Elem, WindupParams> = {
-  fire: { f0: 140, rise: 1.5, type: 'sawtooth', noise: 0.5 },
-  ice: { f0: 520, rise: 1.7, type: 'triangle', noise: 0.35 },
-  holy: { f0: 330, rise: 1.5, type: 'sine', detune: 8, noise: 0.2 },
-  poison: { f0: 110, rise: 1.35, type: 'sawtooth', noise: 0.55 },
-  arcane: { f0: 280, rise: 1.9, type: 'sine', detune: 14, noise: 0.4 },
-  physical: { f0: 190, rise: 1.3, type: 'triangle', noise: 0.25, dur: 0.24, gain: 0.14 },
+// --- Cast windup (sampled charge). -----------------------------------------
+// One energy "charge" sample (sci-fi force-field swell), pitched per element so
+// each school keeps its character — the same idea the old synth used (per-element
+// base frequency), now applied as a sample playbackRate. Higher = brighter/icier,
+// lower = heavier/firier. Heals/buffs get a softer, higher charge.
+const WINDUP_RATE: Record<Elem, number> = {
+  poison: 0.66,
+  fire: 0.74,
+  physical: 0.9,
+  arcane: 1.16,
+  holy: 1.3,
+  ice: 1.5,
 };
+const SUPPORT_WINDUP_RATE = 1.25;
 
-// An uplifting, soft swell for heals/buffs — no harsh charge.
-export const SUPPORT_WINDUP: WindupParams = { f0: 392, rise: 1.5, type: 'sine', detune: 10, noise: 0.12, gain: 0.16, dur: 0.5 };
-
-/** The elements that have a sound palette, derived from the windup table (kept in sync by its Record type). */
-export const SPELL_ELEMENTS = Object.keys(WINDUP) as Elem[];
-
-/** Base (un-pitched) cast windup for an element — the wiki Sounds page previews these. */
-export function elementWindup(e: Elem): WindupParams {
-  return WINDUP[e];
-}
-
-// Bespoke windup tweaks for signature skills (merged over the element base).
-const WINDUP_OVERRIDE: Record<string, Partial<WindupParams>> = {
-  meteor: { f0: 90, rise: 1.4, dur: 0.7, noise: 0.6 },
-  arcane_supremacy: { dur: 0.6, detune: 22 },
-  cataclysm_rings: { f0: 80, rise: 1.6, dur: 0.6 },
-  escape: { f0: 240, rise: 2.2, dur: 0.6 },
-};
-
-export function windupFor(skillId: string): WindupParams {
+export function windupLayersFor(skillId: string): SampleLayer[] {
   const arch = skillArchetype(skillId);
-  const base = arch === 'heal' || arch === 'buff' ? SUPPORT_WINDUP : WINDUP[elementOf(skillId)];
-  const semis = skillSemitone(skillId);
-  const merged = { ...base, ...WINDUP_OVERRIDE[skillId] };
-  return { ...merged, f0: merged.f0 * semitoneToRate(semis) };
+  const support = arch === 'heal' || arch === 'buff';
+  const baseRate = support ? SUPPORT_WINDUP_RATE : WINDUP_RATE[elementOf(skillId)];
+  // Gentle per-skill detune so two same-element casts aren't identical.
+  const rate = baseRate * semitoneToRate(skillSemitone(skillId) / 3);
+  return [{ urls: WINDUP_CHARGE_SAMPLES, gain: support ? 0.22 : 0.3, rate }];
 }
 
 // --- Travel (in-flight whoosh). --------------------------------------------

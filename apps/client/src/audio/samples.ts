@@ -28,6 +28,19 @@ export function preloadSamples(urls: readonly string[]): void {
   for (const url of urls) decode(url);
 }
 
+/** A decoded buffer if ready, else null (and a decode is kicked off). For looping beds. */
+export function getSampleBuffer(url: string): AudioBuffer | null {
+  const buf = buffers.get(url);
+  if (buf) return buf;
+  decode(url);
+  return null;
+}
+
+/** Whether a sample has permanently failed to load/decode (404 / decode error). */
+export function hasSampleFailed(url: string): boolean {
+  return failed.has(url);
+}
+
 function pickReady(urls: readonly string[]): AudioBuffer | null {
   if (urls.length === 0) return null;
   const pick = urls[Math.floor(Math.random() * urls.length)];
@@ -93,4 +106,21 @@ export function playSample(urls: readonly string[], gain = 0.7): void {
   const buf = pickReady(urls);
   if (!buf) return;
   source(ctx, buf, master, gain);
+}
+
+/**
+ * Non-positional layered one-shot (HUD / status cues) — several clips at once
+ * under the master volume. Unlike playSample it does NOT bail on a suspended
+ * context: a cue often fires on the very gesture that resumes audio, and Web
+ * Audio schedules onto a suspended context fine (it plays the moment it resumes).
+ */
+export function playSampleLayers(layers: readonly SampleLayer[]): void {
+  if (isMuted()) return;
+  const ctx = getAudioContext();
+  const master = getMasterGain();
+  if (!ctx || !master) return;
+  for (const l of layers) {
+    const buf = pickReady(l.urls);
+    if (buf) source(ctx, buf, master, l.gain ?? 1, l.rate ?? 1);
+  }
 }

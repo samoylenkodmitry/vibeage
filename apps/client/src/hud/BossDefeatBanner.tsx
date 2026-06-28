@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { playCue } from '../sfx';
+import { playCue } from '../audio/cues';
 import type { EnemyEntity } from '../gameTypes';
 
 type BossDefeatBannerProps = {

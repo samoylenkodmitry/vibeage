@@ -1,5 +1,5 @@
 import { useEffect, type CSSProperties } from 'react';
-import { playCue } from '../sfx';
+import { playCue } from '../audio/cues';
 
 type LowHealthHeartbeatProps = {
   health: number;
