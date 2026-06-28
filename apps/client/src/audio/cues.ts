@@ -1,12 +1,21 @@
 import { playSampleLayers, type SampleLayer } from './samples';
-import { CUE_CLIPS, HIT_SAMPLES, KILL_BODY_SAMPLES, SUB_BOOM_SAMPLES, WINDUP_CHARGE_SAMPLES } from './sampleMap';
+import {
+  HIT_SAMPLES,
+  KILL_BODY_SAMPLES,
+  LOW_SWELL_SAMPLES,
+  SOFT_CLOTH_SAMPLES,
+  SUB_BOOM_SAMPLES,
+  WINDUP_CHARGE_SAMPLES,
+} from './sampleMap';
 
 /**
- * HUD / status cues — short, non-positional sounds for moments the player should
- * notice (taking damage, levelling, dying, low health, a chat ping). All real
- * CC0 samples (Kenney *Interface Sounds* + a couple of impact clips for weight);
- * no synthesis. Each cue is one or more layers played together. The 9 HUD bridges
- * call playCue() — keeping that API means they don't care these are now samples.
+ * HUD / status cues — deliberately **minimal & subtle**: soft, low, barely-there
+ * feedback rather than arcade beeps. The whole palette is three textures kept
+ * quiet and pitched per moment: a soft body thud (impactSoft) for hits/heartbeat,
+ * a soft cloth rustle for light confirmations, a gentle energy swell up (the
+ * cast-charge clip) for "good" moments, and a short low swell down for heavy or
+ * ominous ones. All real CC0 samples. The 9 HUD bridges call playCue() — keeping
+ * that API means they don't care what's behind it.
  */
 
 export type CueId =
@@ -14,29 +23,28 @@ export type CueId =
   | 'death' | 'lowHealth' | 'lowMana' | 'bossTelegraph' | 'chat';
 
 const CUE_LAYERS: Record<CueId, SampleLayer[]> = {
-  // You take damage — a short low negative buzz.
-  hurt: [{ urls: [CUE_CLIPS.error], gain: 0.5 }],
-  // Legacy generic hit blip (kept for the API; combat hits play spatially).
-  hit: [{ urls: HIT_SAMPLES, gain: 0.5 }],
-  // Level up / quest & boss reward — a bright ding rising into a positive swell.
-  levelUp: [{ urls: [CUE_CLIPS.confirm], gain: 0.5 }, { urls: [CUE_CLIPS.maximizeBright], gain: 0.45 }],
-  // A stat / item gained — a short plucked confirm.
-  pickup: [{ urls: [CUE_CLIPS.pluck], gain: 0.5 }],
-  // Legacy synth kill blip → a low resonant hit.
-  kill: [{ urls: [CUE_CLIPS.bong], gain: 0.45 }],
-  // You come back to life — a soft rising swell.
-  respawn: [{ urls: [CUE_CLIPS.maximizeSoft], gain: 0.5 }],
-  // You die — a descending tone with a deep boom under it for weight.
-  death: [{ urls: [CUE_CLIPS.minimizeDown], gain: 0.5 }, { urls: SUB_BOOM_SAMPLES, gain: 0.4 }],
+  // You take damage — a soft, dull low thud.
+  hurt: [{ urls: KILL_BODY_SAMPLES, gain: 0.4, rate: 0.92 }],
+  // Legacy generic hit cue (combat hits play spatially); kept quiet.
+  hit: [{ urls: HIT_SAMPLES, gain: 0.3 }],
+  // Level up / quest & boss reward — a gentle bright swell up, no fanfare.
+  levelUp: [{ urls: WINDUP_CHARGE_SAMPLES, gain: 0.3, rate: 1.3 }],
+  // A stat / item gained — a soft cloth rustle.
+  pickup: [{ urls: SOFT_CLOTH_SAMPLES, gain: 0.35, rate: 1.1 }],
+  // Legacy kill cue — a soft low thud.
+  kill: [{ urls: KILL_BODY_SAMPLES, gain: 0.32, rate: 0.85 }],
+  // You come back to life — a soft warm swell up.
+  respawn: [{ urls: WINDUP_CHARGE_SAMPLES, gain: 0.3, rate: 1.0 }],
+  // You die — a low swell down with a faint deep boom under it.
+  death: [{ urls: LOW_SWELL_SAMPLES, gain: 0.35 }, { urls: SUB_BOOM_SAMPLES, gain: 0.22, rate: 0.9 }],
   // Heartbeat under 20% HP — a soft, dull body thud, quiet.
-  lowHealth: [{ urls: KILL_BODY_SAMPLES, gain: 0.3 }],
-  // Under 20% mana — a short quiet descending tick.
-  lowMana: [{ urls: [CUE_CLIPS.minimizeShort], gain: 0.3 }],
-  // A boss winds up a dangerous attack — the energy charge pitched low into a
-  // slow, ominous swell.
-  bossTelegraph: [{ urls: WINDUP_CHARGE_SAMPLES, gain: 0.4, rate: 0.6 }],
-  // A chat message arrives — a soft friendly blip.
-  chat: [{ urls: [CUE_CLIPS.select], gain: 0.3 }],
+  lowHealth: [{ urls: KILL_BODY_SAMPLES, gain: 0.28, rate: 0.9 }],
+  // Under 20% mana — a short, quiet low swell.
+  lowMana: [{ urls: LOW_SWELL_SAMPLES, gain: 0.22, rate: 1.2 }],
+  // A boss winds up a dangerous attack — a low, ominous swell (a touch louder).
+  bossTelegraph: [{ urls: LOW_SWELL_SAMPLES, gain: 0.4, rate: 0.85 }],
+  // A chat message arrives — a faint, light cloth tick.
+  chat: [{ urls: SOFT_CLOTH_SAMPLES, gain: 0.25, rate: 1.35 }],
 };
 
 /** Every cue id — used by the wiki Sounds library + its completeness test. */

@@ -164,7 +164,7 @@ const CUES: ReadonlyArray<{ cue: CueId; title: string; detail: string }> = [
   { cue: 'levelUp', title: 'Level up', detail: 'Level gained / quest & boss reward' },
   { cue: 'pickup', title: 'Pickup', detail: 'A stat or item is gained' },
   { cue: 'respawn', title: 'Respawn', detail: 'You come back to life' },
-  { cue: 'death', title: 'Death', detail: 'You die — descending tone + deep boom' },
+  { cue: 'death', title: 'Death', detail: 'You die — low swell down + deep boom' },
   { cue: 'lowHealth', title: 'Low health', detail: 'Heartbeat under 20% HP' },
   { cue: 'lowMana', title: 'Low mana', detail: 'Under 20% mana (casters)' },
   { cue: 'bossTelegraph', title: 'Boss telegraph', detail: 'A boss winds up a dangerous attack' },
@@ -176,7 +176,7 @@ const CUES: ReadonlyArray<{ cue: CueId; title: string; detail: string }> = [
 const cuesGroup: SoundGroup = {
   id: 'cues',
   title: 'UI & status cues (sample)',
-  blurb: 'Short non-positional HUD / status sounds (Kenney Interface, CC0).',
+  blurb: 'Minimal, subtle HUD / status feedback — soft thuds, cloth, low swells (CC0). No fanfare.',
   entries: CUES.map((c): SoundEntry => ({
     id: `cue-${c.cue}`,
     title: c.title,
