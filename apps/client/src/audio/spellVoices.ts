@@ -1,0 +1,87 @@
+import { playSpatial } from './spatial';
+
+/**
+ * Synthesized *windup* voices — the rising charge you hear as a spell is cast,
+ * before it flies or lands. Tonal sweeps (not percussive hits) are exactly what
+ * synthesis does cleanly, and a per-element base frequency + a per-skill pitch
+ * shift make every cast distinct. The flight (whoosh) and landing (impact) are
+ * real samples; only this build-up is synth. Routed through the spatial bus, so
+ * a cast across the valley is faint and panned.
+ */
+
+export type WindupParams = {
+  /** Base frequency the charge starts at. */
+  f0: number;
+  /** Multiplier the pitch glides up to over the windup (a charge "rises"). */
+  rise: number;
+  type: OscillatorType;
+  /** A second osc detuned by this many cents for a shimmer (0 = none). */
+  detune?: number;
+  /** Seconds. */
+  dur?: number;
+  /** Peak voice gain (pre-spatial). Kept low — the windup sits *under* the cast. */
+  gain?: number;
+  /** Band-passed-noise shimmer amount, 0..1 of peak. */
+  noise?: number;
+};
+
+let noiseBuf: AudioBuffer | null = null;
+function noise(ctx: AudioContext): AudioBuffer {
+  if (noiseBuf && noiseBuf.sampleRate === ctx.sampleRate) return noiseBuf;
+  const buf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+  const d = buf.getChannelData(0);
+  // Deterministic LCG so the bed is stable (no Math.random — same as the rest).
+  let s = 0x2545f491;
+  for (let i = 0; i < d.length; i++) {
+    s = (s * 1103515245 + 12345) & 0x7fffffff;
+    d[i] = (s / 0x40000000) - 1;
+  }
+  noiseBuf = buf;
+  return buf;
+}
+
+function buildWindup(ctx: AudioContext, dest: AudioNode, p: WindupParams): void {
+  const t0 = ctx.currentTime;
+  const dur = p.dur ?? 0.38;
+  const peak = p.gain ?? 0.18;
+
+  const env = ctx.createGain();
+  env.gain.setValueAtTime(0.0001, t0);
+  env.gain.exponentialRampToValueAtTime(peak, t0 + dur * 0.55);
+  env.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  env.connect(dest);
+
+  const glide = (osc: OscillatorNode, cents: number) => {
+    osc.type = p.type;
+    if (cents) osc.detune.value = cents;
+    osc.frequency.setValueAtTime(p.f0, t0);
+    osc.frequency.exponentialRampToValueAtTime(p.f0 * p.rise, t0 + dur);
+    osc.connect(env);
+    osc.start(t0);
+    osc.stop(t0 + dur + 0.02);
+    osc.onended = () => { try { osc.disconnect(); } catch { /* gone */ } };
+  };
+  glide(ctx.createOscillator(), 0);
+  if (p.detune) glide(ctx.createOscillator(), p.detune);
+
+  if (p.noise) {
+    const src = ctx.createBufferSource();
+    src.buffer = noise(ctx);
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.Q.value = 6;
+    bp.frequency.setValueAtTime(p.f0 * 2, t0);
+    bp.frequency.exponentialRampToValueAtTime(p.f0 * p.rise * 2.4, t0 + dur);
+    const ng = ctx.createGain();
+    ng.gain.value = p.noise * peak;
+    src.connect(bp).connect(ng).connect(dest);
+    src.start(t0);
+    src.stop(t0 + dur + 0.02);
+    src.onended = () => { try { src.disconnect(); bp.disconnect(); ng.disconnect(); } catch { /* gone */ } };
+  }
+}
+
+/** Play an element-tinted, per-skill-pitched cast windup at a world point. */
+export function playWindupAt(p: WindupParams, worldX: number, worldZ: number): void {
+  playSpatial((ctx, dest) => buildWindup(ctx, dest, p), worldX, worldZ);
+}
