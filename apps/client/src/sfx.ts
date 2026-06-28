@@ -8,7 +8,7 @@
  * the player interacts with the page.
  */
 
-type CueId = 'hurt' | 'hit' | 'levelUp' | 'pickup' | 'kill' | 'respawn' | 'death' | 'lowHealth' | 'lowMana' | 'bossTelegraph' | 'chat';
+export type CueId = 'hurt' | 'hit' | 'levelUp' | 'pickup' | 'kill' | 'respawn' | 'death' | 'lowHealth' | 'lowMana' | 'bossTelegraph' | 'chat';
 
 let ctx: AudioContext | null = null;
 let masterGain: GainNode | null = null;

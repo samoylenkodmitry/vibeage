@@ -24,7 +24,7 @@ import {
  * of a damage slam. A few signature skills get bespoke tweaks on top.
  */
 
-type Elem = SpellElement | 'physical';
+export type Elem = SpellElement | 'physical';
 
 export function elementOf(skillId: string): Elem {
   return skillThemeFor(skillId).element ?? 'physical';
@@ -62,7 +62,15 @@ const WINDUP: Record<Elem, WindupParams> = {
 };
 
 // An uplifting, soft swell for heals/buffs — no harsh charge.
-const SUPPORT_WINDUP: WindupParams = { f0: 392, rise: 1.5, type: 'sine', detune: 10, noise: 0.12, gain: 0.16, dur: 0.5 };
+export const SUPPORT_WINDUP: WindupParams = { f0: 392, rise: 1.5, type: 'sine', detune: 10, noise: 0.12, gain: 0.16, dur: 0.5 };
+
+/** The elements that have a sound palette, derived from the windup table (kept in sync by its Record type). */
+export const SPELL_ELEMENTS = Object.keys(WINDUP) as Elem[];
+
+/** Base (un-pitched) cast windup for an element — the wiki Sounds page previews these. */
+export function elementWindup(e: Elem): WindupParams {
+  return WINDUP[e];
+}
 
 // Bespoke windup tweaks for signature skills (merged over the element base).
 const WINDUP_OVERRIDE: Record<string, Partial<WindupParams>> = {
