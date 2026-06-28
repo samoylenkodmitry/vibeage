@@ -13,10 +13,15 @@ export const HIT_SAMPLES = [
   `${BASE}/impactGeneric_light_002.ogg`,
 ];
 
+// A heavy, low death "thud" — the metal clang read as toy-like. Layered with a
+// soft body impact at the call site for weight.
 export const KILL_SAMPLES = [
-  `${BASE}/impactMetal_heavy_000.ogg`,
-  `${BASE}/impactMetal_heavy_001.ogg`,
-  `${BASE}/impactMetal_heavy_002.ogg`,
+  `${BASE}/lowFrequency_explosion_000.ogg`,
+  `${BASE}/lowFrequency_explosion_001.ogg`,
+];
+export const KILL_BODY_SAMPLES = [
+  `${BASE}/impactSoft_heavy_000.ogg`,
+  `${BASE}/impactSoft_heavy_001.ogg`,
 ];
 
 export const LOOT_SAMPLES = [`${BASE}/handleCoins.ogg`, `${BASE}/handleCoins2.ogg`];
@@ -55,6 +60,6 @@ export const COMBAT_GAIN = 0.85;
 
 /** Every sample url — preload on the first gesture so the first hit isn't silent. */
 export const ALL_SFX_URLS: readonly string[] = [
-  ...HIT_SAMPLES, ...KILL_SAMPLES, ...LOOT_SAMPLES, ...UI_SAMPLES,
+  ...HIT_SAMPLES, ...KILL_SAMPLES, ...KILL_BODY_SAMPLES, ...LOOT_SAMPLES, ...UI_SAMPLES,
   ...Object.values(ELEMENT_IMPACT).flat(),
 ];

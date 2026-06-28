@@ -16,9 +16,10 @@ describe('spatialGainFor', () => {
 });
 
 describe('spatialPanFor', () => {
-  it('pans toward the camera-right axis (+X) and away for -X, at yaw 0', () => {
-    expect(spatialPanFor(10, 0, 0)).toBeGreaterThan(0.9);
-    expect(spatialPanFor(-10, 0, 0)).toBeLessThan(-0.9);
+  it('puts world -X on the right and +X on the left at yaw 0 (camera looks +Z)', () => {
+    // Screen-right = (-cos yaw, sin yaw); at yaw 0 that's world -X.
+    expect(spatialPanFor(-10, 0, 0)).toBeGreaterThan(0.9);
+    expect(spatialPanFor(10, 0, 0)).toBeLessThan(-0.9);
   });
 
   it('centres a sound directly ahead or behind (±Z) at yaw 0', () => {

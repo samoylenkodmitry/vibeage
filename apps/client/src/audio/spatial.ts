@@ -27,9 +27,10 @@ export function spatialGainFor(distance: number): number {
 export function spatialPanFor(dx: number, dz: number, cameraYaw: number): number {
   const dist = Math.hypot(dx, dz);
   if (dist < 1e-3) return 0;
-  // Forward = (sin yaw, cos yaw) (matches the game's atan2(dx,dz) convention);
-  // right = (cos yaw, -sin yaw). pan = component of the direction along right.
-  const right = (dx * Math.cos(cameraYaw) - dz * Math.sin(cameraYaw)) / dist;
+  // The orbit camera sits at focus - (sin yaw, ., cos yaw)*dist, so it looks
+  // along (sin yaw, cos yaw); its screen-right is cross(forward, up) =
+  // (-cos yaw, sin yaw). pan = the direction's component along that right.
+  const right = (dz * Math.sin(cameraYaw) - dx * Math.cos(cameraYaw)) / dist;
   return Math.max(-1, Math.min(1, right));
 }
 
