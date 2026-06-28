@@ -94,8 +94,12 @@ export function playWindupAt(p: WindupParams, worldX: number, worldZ: number): v
 /** Play a windup straight under the master volume (no spatialization) — for previews (wiki Sounds page). */
 export function playWindup(p: WindupParams): void {
   if (isMuted()) return;
-  const ctx = getAudioContext();
+  const ctx = getAudioContext(); // also kicks an opportunistic resume()
   const master = getMasterGain();
-  if (!ctx || !master || ctx.state !== 'running') return;
+  // No `state === 'running'` guard here (unlike the gameplay buses): this is a
+  // deliberate button press, and resume() after the first-ever gesture is async,
+  // so the context may still read 'suspended' this tick. Web Audio schedules onto
+  // a suspended context fine — it plays the instant it resumes — so don't bail.
+  if (!ctx || !master) return;
   buildWindup(ctx, master, p);
 }
