@@ -36,6 +36,11 @@ export function getSampleBuffer(url: string): AudioBuffer | null {
   return null;
 }
 
+/** Whether a sample has permanently failed to load/decode (404 / decode error). */
+export function hasSampleFailed(url: string): boolean {
+  return failed.has(url);
+}
+
 function pickReady(urls: readonly string[]): AudioBuffer | null {
   if (urls.length === 0) return null;
   const pick = urls[Math.floor(Math.random() * urls.length)];

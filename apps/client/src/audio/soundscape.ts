@@ -1,5 +1,5 @@
 import { getAudioContext, getMasterGain } from '../sfx';
-import { getSampleBuffer, preloadSamples } from './samples';
+import { getSampleBuffer, hasSampleFailed, preloadSamples } from './samples';
 import { AMBIENT_DAY, AMBIENT_NIGHT, AMBIENT_URLS } from './sampleMap';
 
 /**
@@ -36,6 +36,8 @@ let dayGain: GainNode | null = null;
 let nightGain: GainNode | null = null;
 const liveSources: AudioBufferSourceNode[] = [];
 let wireTimer: ReturnType<typeof setTimeout> | null = null;
+let wireAttempts = 0;
+const MAX_WIRE_ATTEMPTS = 40; // ~10s at 250ms — backstop if a fetch hangs without resolving
 
 export function setAmbientEnabled(on: boolean): void {
   enabled = on;
@@ -73,22 +75,31 @@ export function startSoundscape(): void {
   ambientGain.connect(master);
 
   preloadSamples(AMBIENT_URLS);
+  wireAttempts = 0;
   wireBeds();
 }
 
-/** Start the two loops once their buffers have decoded; retry until they're ready. */
+/**
+ * Start the loops once their buffers decode. Retries only while a bed is still
+ * genuinely loading — a permanently failed bed (hasSampleFailed) or a hung fetch
+ * (the attempt cap) stops the retry so there's no infinite background loop. Wires
+ * whichever bed(s) did decode, so one bad file doesn't silence the other.
+ */
 function wireBeds(): void {
   const ctx = audioCtx;
   if (!running || !ctx || !ambientGain) return;
   const dayBuf = getSampleBuffer(AMBIENT_DAY);
   const nightBuf = getSampleBuffer(AMBIENT_NIGHT);
-  if (!dayBuf || !nightBuf) {
+  const stillLoading =
+    (!dayBuf && !hasSampleFailed(AMBIENT_DAY)) || (!nightBuf && !hasSampleFailed(AMBIENT_NIGHT));
+  if (stillLoading && wireAttempts < MAX_WIRE_ATTEMPTS) {
+    wireAttempts += 1;
     wireTimer = setTimeout(wireBeds, 250);
     return;
   }
   const { day, night } = ambientMix(nightFactor);
-  dayGain = loopBed(ctx, dayBuf, ambientGain, day);
-  nightGain = loopBed(ctx, nightBuf, ambientGain, night);
+  if (dayBuf) dayGain = loopBed(ctx, dayBuf, ambientGain, day);
+  if (nightBuf) nightGain = loopBed(ctx, nightBuf, ambientGain, night);
 }
 
 function loopBed(ctx: AudioContext, buf: AudioBuffer, dest: AudioNode, gain0: number): GainNode {
