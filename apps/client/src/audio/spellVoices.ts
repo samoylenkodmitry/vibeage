@@ -30,11 +30,12 @@ function noise(ctx: AudioContext): AudioBuffer {
   if (noiseBuf && noiseBuf.sampleRate === ctx.sampleRate) return noiseBuf;
   const buf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
   const d = buf.getChannelData(0);
-  // Deterministic LCG so the bed is stable (no Math.random — same as the rest).
+  // Deterministic 32-bit LCG, stable across runs (no Math.random). Math.imul
+  // keeps the multiply exact — plain `*` would overflow 2^53 and lose low bits.
   let s = 0x2545f491;
   for (let i = 0; i < d.length; i++) {
-    s = (s * 1103515245 + 12345) & 0x7fffffff;
-    d[i] = (s / 0x40000000) - 1;
+    s = (Math.imul(s, 1664525) + 1013904223) >>> 0;
+    d[i] = (s / 0x80000000) - 1;
   }
   noiseBuf = buf;
   return buf;
@@ -67,14 +68,17 @@ function buildWindup(ctx: AudioContext, dest: AudioNode, p: WindupParams): void 
   if (p.noise) {
     const src = ctx.createBufferSource();
     src.buffer = noise(ctx);
+    src.loop = true; // the bed is 1s; loop so longer windups don't cut out
     const bp = ctx.createBiquadFilter();
     bp.type = 'bandpass';
     bp.Q.value = 6;
     bp.frequency.setValueAtTime(p.f0 * 2, t0);
     bp.frequency.exponentialRampToValueAtTime(p.f0 * p.rise * 2.4, t0 + dur);
     const ng = ctx.createGain();
-    ng.gain.value = p.noise * peak;
-    src.connect(bp).connect(ng).connect(dest);
+    ng.gain.value = p.noise; // relative — it rides the shared envelope below
+    // Through `env`, not straight to dest, so the shimmer fades with the charge
+    // instead of clicking in/out at full volume.
+    src.connect(bp).connect(ng).connect(env);
     src.start(t0);
     src.stop(t0 + dur + 0.02);
     src.onended = () => { try { src.disconnect(); bp.disconnect(); ng.disconnect(); } catch { /* gone */ } };
