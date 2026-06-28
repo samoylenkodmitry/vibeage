@@ -170,7 +170,7 @@ const CUES: ReadonlyArray<{ cue: CueId; title: string; detail: string }> = [
   { cue: 'bossTelegraph', title: 'Boss telegraph', detail: 'A boss winds up a dangerous attack' },
   { cue: 'chat', title: 'Chat', detail: 'A chat message arrives' },
   { cue: 'hit', title: 'Hit (cue)', detail: 'Legacy generic-hit cue' },
-  { cue: 'kill', title: 'Kill (cue)', detail: 'Legacy kill cue — a low resonant hit' },
+  { cue: 'kill', title: 'Kill (cue)', detail: 'Legacy kill cue — a soft low thud' },
 ];
 
 const cuesGroup: SoundGroup = {
