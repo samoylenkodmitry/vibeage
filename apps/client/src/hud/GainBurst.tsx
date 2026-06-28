@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { playCue } from '../sfx';
+import { playCue } from '../audio/cues';
 
 type GainBurstProps = {
   /** Player's current XP total — watched for upward deltas. */

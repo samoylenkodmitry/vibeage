@@ -2,15 +2,14 @@ import { useEffect, useRef } from 'react';
 import { CastState } from '../../../../packages/protocol/messages';
 import type { VisibleCast } from '../gameTypes';
 import { playSampleLayersAt } from '../audio/samples';
-import { playWindupAt } from '../audio/spellVoices';
-import { impactLayersFor, travelLayersFor, windupFor } from '../audio/skillAudio';
+import { impactLayersFor, travelLayersFor, windupLayersFor } from '../audio/skillAudio';
 
 /**
  * Three-phase, per-skill spell audio — headless, watching the same cast state
  * the VFX render from. Every cast moves through up to three distinct sounds,
  * each positioned in the world via the spatial bus:
  *
- *   - CASTING   → a synth windup charge (element-tinted, per-skill pitch)
+ *   - CASTING   → a sampled energy charge (element-pitched, per-skill detune)
  *   - TRAVELING → an in-flight whoosh sample (projectiles only)
  *   - IMPACT    → layered landing samples (element + heavy sub-boom; heals sparkle)
  *
@@ -33,7 +32,7 @@ export function SkillSfxBridge({ casts }: { casts: Record<string, VisibleCast> }
 
       if (snap.state === CastState.Casting && !(done & PHASE_CAST)) {
         phases.set(id, done | PHASE_CAST);
-        playWindupAt(windupFor(snap.skillId), snap.pos.x, snap.pos.z);
+        playSampleLayersAt(windupLayersFor(snap.skillId), snap.pos.x, snap.pos.z);
       } else if (snap.state === CastState.Traveling && !(done & PHASE_TRAVEL)) {
         phases.set(id, done | PHASE_TRAVEL);
         playSampleLayersAt(travelLayersFor(snap.skillId), snap.pos.x, snap.pos.z);

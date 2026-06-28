@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { playCue } from '../sfx';
+import { playCue } from '../audio/cues';
 
 type HurtVignetteProps = {
   health: number;

@@ -104,7 +104,7 @@ export function SfxMuteButton() {
         className={`sfx-mute-button${ambientOn ? '' : ' sfx-mute-button--off'}`}
         aria-pressed={ambientOn}
         aria-label={ambientOn ? 'Turn off ambient sound' : 'Turn on ambient sound'}
-        title={ambientOn ? 'Ambient sound on (wind, crickets) — click to mute' : 'Ambient sound off — click to enable'}
+        title={ambientOn ? 'Ambient sound on (forest, crickets) — click to mute' : 'Ambient sound off — click to enable'}
         onClick={() => setAmbientOn((a) => !a)}
       >
         🌿

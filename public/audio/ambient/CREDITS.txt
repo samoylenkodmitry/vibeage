@@ -1,0 +1,12 @@
+Looping ambient nature beds, cross-faded by day/night in the game's soundscape.
+Both are Creative Commons CC0 1.0 (public domain) from OpenGameArt.org — free for
+any use, no attribution required. Credit kept here as good practice.
+
+  - forest_ambience.ogg  — "Forest Ambience" (calm forest, gentle wind + birds; loops)
+                           https://opengameart.org/content/forest-ambience
+  - crickets.ogg         — "Crickets Ambient Noise - loopable"
+                           https://opengameart.org/content/crickets-ambient-noise-loopable
+
+Converted from the source MP3s to mono Ogg/Vorbis for delivery; otherwise unaltered.
+
+License: https://creativecommons.org/publicdomain/zero/1.0/
