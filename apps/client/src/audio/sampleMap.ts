@@ -28,22 +28,13 @@ export const LOOT_SAMPLES = [`${BASE}/handleCoins.ogg`, `${BASE}/handleCoins2.og
 export const UI_SAMPLES = [`${BASE}/metalClick.ogg`];
 
 /**
- * Single-shot clips for the HUD / status cues (Kenney *Interface Sounds*),
- * chosen by their semantic name (maximize = rising, minimize = falling,
- * confirmation = positive ding, error = negative buzz, …). The cue → layer
- * mapping lives in audio/cues.ts; these are just the raw files.
+ * Soft, organic clips the HUD / status cues are built from — deliberately
+ * minimal & subtle (no arcade beeps): a soft cloth rustle (RPG Audio) for light
+ * confirmations, and a short low swell (trimmed sci-fi engine) for heavier or
+ * ominous moments. The cue → layer mapping lives in audio/cues.ts.
  */
-export const CUE_CLIPS = {
-  error: `${BASE}/error_002.ogg`,
-  confirm: `${BASE}/confirmation_001.ogg`,
-  maximizeBright: `${BASE}/maximize_004.ogg`,
-  maximizeSoft: `${BASE}/maximize_002.ogg`,
-  pluck: `${BASE}/pluck_002.ogg`,
-  bong: `${BASE}/bong_001.ogg`,
-  minimizeDown: `${BASE}/minimize_004.ogg`,
-  minimizeShort: `${BASE}/minimize_001.ogg`,
-  select: `${BASE}/select_005.ogg`,
-} as const;
+export const SOFT_CLOTH_SAMPLES = [`${BASE}/cloth1.ogg`, `${BASE}/cloth2.ogg`];
+export const LOW_SWELL_SAMPLES = [`${BASE}/lowSwell_000.ogg`, `${BASE}/lowSwell_001.ogg`];
 
 /** The cast "charge" — a sci-fi force-field energy swell, pitched per element + skill (see skillAudio). */
 export const WINDUP_CHARGE_SAMPLES = [`${BASE}/forceField_002.ogg`, `${BASE}/forceField_003.ogg`];
@@ -137,7 +128,8 @@ export const ALL_SFX_URLS: readonly string[] = [
   ...HIT_SAMPLES, ...KILL_SAMPLES, ...KILL_BODY_SAMPLES, ...LOOT_SAMPLES, ...UI_SAMPLES,
   ...Object.values(ELEMENT_IMPACT).flat(),
   ...Object.values(ELEMENT_TRAVEL).flat(),
-  ...Object.values(CUE_CLIPS),
+  ...SOFT_CLOTH_SAMPLES,
+  ...LOW_SWELL_SAMPLES,
   ...WINDUP_CHARGE_SAMPLES,
 ];
 
