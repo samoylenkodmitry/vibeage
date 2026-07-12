@@ -1,9 +1,11 @@
+import { ServerError } from '@colyseus/core';
 import {
   describeProtocolError,
   safeParseClientMessage,
   type ServerMessage,
   type ClientMessage,
 } from '../../packages/protocol/messages.js';
+import { WORLD_JOIN_REJECTION } from '../../packages/protocol/sessionEvents.js';
 import type { GameState } from '../gameState.js';
 import type {
   AuthoritativeRoomClient,
@@ -104,7 +106,16 @@ export class ColyseusAuthoritativeRoomAdapter {
         characterName: playerName,
         reason: 'invalidToken',
       });
-      throw new Error('Rejected join: invalid or expired session token');
+      // Throw a *coded* ServerError so the code survives to the client: Colyseus
+      // relays `.code`/`.message` via Protocol.ERROR and the SDK rejects
+      // joinOrCreate with `ServerError(code, message)`. The client keys on
+      // WORLD_JOIN_REJECTION.unauthorized to clear the stale session and re-auth
+      // (a plain Error would arrive as the generic APPLICATION_ERROR 526,
+      // indistinguishable from a transient join failure).
+      throw new ServerError(
+        WORLD_JOIN_REJECTION.unauthorized,
+        'Your session expired — please log in again.',
+      );
     }
     let accountLogin: string | undefined;
     try {

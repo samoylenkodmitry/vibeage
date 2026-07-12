@@ -82,6 +82,7 @@ export type GameClientAction =
   | { type: 'connected' }
   | { type: 'joined'; playerId: string }
   | { type: 'connectionRejected'; message: string }
+  | { type: 'sessionExpired'; message: string }
   | { type: 'disconnected'; message: string }
   | { type: 'gameState'; state: ServerGameState }
   | { type: 'worldPublicState'; state: WorldPublicState }
@@ -114,6 +115,9 @@ export function gameClientReducer(
       return { ...state, connectionState: 'online', message: 'Online', myPlayerId: action.playerId };
     case 'connectionRejected':
       return { ...state, connectionState: 'rejected', message: action.message };
+    case 'sessionExpired':
+      // Saved token rejected: clean slate; App re-enters as guest, login open.
+      return { ...initialGameClientState, connectionState: 'sessionExpired', message: action.message };
     case 'disconnected':
       return { ...state, connectionState: 'offline', message: action.message };
     case 'gameState':

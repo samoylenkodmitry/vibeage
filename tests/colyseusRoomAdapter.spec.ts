@@ -5,6 +5,7 @@ import { createGameState } from '../server/gameState';
 import { runtimeMetrics } from '../server/observability/runtimeMetrics';
 import { createTransientPlayer } from '../server/playerFactory';
 import type { AuthoritativeRoomPort } from '../server/transport/roomBoundary';
+import { WORLD_JOIN_REJECTION } from '../packages/protocol/sessionEvents';
 import {
   ColyseusAuthoritativeRoomAdapter,
   makeColyseusOutbound,
@@ -204,11 +205,16 @@ describe('Colyseus room adapter guest onboarding', () => {
     const client = makeClient('socket-bad');
     const adapter = new ColyseusAuthoritativeRoomAdapter(port);
 
-    await expect(adapter.handleJoin(client, {
+    const rejection = adapter.handleJoin(client, {
       playerName: 'Ghost',
       clientProtocolVersion: 2,
       sessionToken: 'not.a.valid.token',
-    })).rejects.toThrow(/invalid or expired session token/);
+    });
+    await expect(rejection).rejects.toThrow('Your session expired');
+    // The rejection carries the shared unauthorized code (a coded ServerError),
+    // so the client can tell this apart from a transient drop, clear the stale
+    // session, and re-enter as a guest instead of retry-looping the dead token.
+    await expect(rejection).rejects.toMatchObject({ code: WORLD_JOIN_REJECTION.unauthorized });
 
     expect(port.joinClient).not.toHaveBeenCalled();
     expect(client.send).toHaveBeenCalledWith('connectionRejected', {

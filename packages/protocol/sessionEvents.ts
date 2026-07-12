@@ -11,3 +11,24 @@ export const SESSION_EVENTS = {
   enemyUpdated: 'enemyUpdated',
 } as const;
 
+/**
+ * World-join rejection codes carried on the Colyseus join failure — the
+ * `ServerError.code` the client sees when `joinOrCreate` rejects (the server
+ * throws a `ServerError(code, message)` from `onJoin`, which Colyseus relays to
+ * the client as `Protocol.ERROR` → `room.onError` → the rejection).
+ *
+ * They let the client tell an *authentication* failure — a missing/expired
+ * session token, where the only fix is to drop the stale saved session and
+ * re-authenticate — apart from a transient network drop, where the fix is to
+ * keep retrying with the same token. Without this distinction an expired token
+ * traps the player: every reconnect re-presents the dead token and fails, the
+ * world renders with no hero, and there's no path back to a login.
+ *
+ * Values live in the app-reserved 49xx range, clear of Colyseus's own close /
+ * error codes (1xxx, 40xx close codes; 520–526, 4217 error codes).
+ */
+export const WORLD_JOIN_REJECTION = {
+  /** Presented session token was absent, malformed, or expired. */
+  unauthorized: 4900,
+} as const;
+
