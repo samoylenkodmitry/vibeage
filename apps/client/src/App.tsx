@@ -3,6 +3,7 @@ import { GameHud } from './Hud';
 import { ActionFeedbackFlash } from './hud/ActionFeedbackFlash';
 import { AwakeningPanel } from './AwakeningPanel';
 import { createCharacter, hasSavedSession, loadSession, saveSession, type LobbySession, type SavedCharacter } from './accountSession';
+import { planAutoEnter } from './autoEnter';
 import { becomeCharacter, type BecomeInput } from './onboarding';
 import type { VecXZ } from '../../../packages/protocol/messages';
 import type { CameraControls } from './CameraRig';
@@ -55,20 +56,17 @@ function useAutoEnter(client: ReturnType<typeof useGameClient>): void {
   useEffect(() => {
     if (hasJoinedRef.current) return;
     if (connectionState !== 'idle') return;
-    const session = loadSession();
-    if (session?.character) {
-      hasJoinedRef.current = true;
-      connect(session.character.name, {
-        race: session.character.race,
-        className: session.character.className,
-        sessionToken: session.token,
-      });
-    } else if (!session) {
-      hasJoinedRef.current = true;
-      connect('Nameless');
-    }
-    // A session with a token but no remembered hero (just logged in, or a
-    // legacy save) falls through to the lobby to pick / create a character.
+    hasJoinedRef.current = true;
+    // Always enter — a remembered hero, else the Nameless guest (no session, or
+    // a session with no remembered hero). Never a blocking form on the way in;
+    // identity is offered in-world by IdentityLayer. See planAutoEnter.
+    const plan = planAutoEnter(loadSession());
+    connect(
+      plan.name,
+      plan.as === 'hero'
+        ? { race: plan.race, className: plan.className, sessionToken: plan.sessionToken }
+        : undefined,
+    );
   }, [connect, connectionState]);
 }
 
@@ -91,11 +89,11 @@ function InstantWorldLoader() {
   );
 }
 
-// Pre-connection screen. On the first load we show only the loader while we
-// auto-enter (straight into a remembered hero, or as a guest). We show the
-// in-world identity panel — to pick a hero, switch, log out, or manage the
-// account — only when there's a session with no remembered hero, or after a
-// first connection attempt has ended back at `idle`. No web form, ever.
+// Pre-connection screen. The first load ALWAYS auto-enters — straight into a
+// remembered hero, or as the Nameless guest — so this normally only shows the
+// loader, never a form. The AwakeningPanel stays as a safety net for the rare
+// case a first attempt lands back at `idle` (`hasAttempted`); identity is
+// otherwise handled in-world (IdentityLayer). No blocking form on the way in.
 function EntryView({
   onEnter,
   onBecome,
@@ -107,9 +105,8 @@ function EntryView({
   onLogout: () => void;
   hasAttempted: boolean;
 }) {
-  const session = loadSession();
-  if ((session && !session.character) || hasAttempted) {
-    return <AwakeningPanel initialSession={session} onEnter={onEnter} onBecome={onBecome} onLogout={onLogout} />;
+  if (hasAttempted) {
+    return <AwakeningPanel initialSession={loadSession()} onEnter={onEnter} onBecome={onBecome} onLogout={onLogout} />;
   }
   return <InstantWorldLoader />;
 }
