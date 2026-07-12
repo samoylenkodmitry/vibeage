@@ -163,7 +163,39 @@ function useGuestAwakening(client: ReturnType<typeof useGameClient>) {
     setShowAwakening(false);
     connect('Nameless');
   }, [connect]);
+  // Recovery when a saved token is rejected as invalid/expired on join. Same
+  // shape as logout — drop the dead session, re-enter as a Nameless guest — but
+  // pop the Awakening panel open so the player can log back in immediately.
+  // Without this an expired token strands them: the world renders with no hero
+  // and no reachable login (the bug this fixes).
+  const recoverFromExpiredSession = useCallback(() => {
+    saveSession(null);
+    setIsGuest(true);
+    setShowAwakening(true);
+    connect('Nameless');
+  }, [connect]);
+  useExpiredSessionRecovery(client.state.connectionState, recoverFromExpiredSession);
   return { isGuest, showAwakening, setShowAwakening, enterWorld, handleBecome, handleLogout };
+}
+
+// An expired/invalid saved token lands the client in `sessionExpired`. React to
+// it once per transition by running the recovery (clear session → guest →
+// Awakening panel). `connect` inside the recovery moves us out of that state, so
+// the ref guard just prevents a double-fire (e.g. StrictMode's double effect).
+function useExpiredSessionRecovery(
+  connectionState: ReturnType<typeof useGameClient>['state']['connectionState'],
+  recover: () => void,
+): void {
+  const handledRef = useRef(false);
+  useEffect(() => {
+    if (connectionState !== 'sessionExpired') {
+      handledRef.current = false;
+      return;
+    }
+    if (handledRef.current) return;
+    handledRef.current = true;
+    recover();
+  }, [connectionState, recover]);
 }
 
 // True once we've *attempted* the first connection (left `idle`). The auto-join

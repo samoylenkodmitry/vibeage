@@ -152,7 +152,8 @@ type ConnectionState =
   | 'joining'
   | 'online'
   | 'offline'
-  | 'rejected';
+  | 'rejected'
+  | 'sessionExpired';
 
 export type VisibleCast = {
   snapshot: CastSnapshot;

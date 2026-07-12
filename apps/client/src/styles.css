@@ -3829,7 +3829,8 @@ input {
   background: #f59e0b;
 }
 
-.status-rejected {
+.status-rejected,
+.status-sessionExpired {
   background: #ef6461;
 }
 

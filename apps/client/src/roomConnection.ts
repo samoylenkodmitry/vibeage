@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, type Dispatch } from 'react';
 import { Client as ColyseusClient, type Room } from '@colyseus/sdk';
 import { safeParseServerMessage } from '../../../packages/protocol/messages';
-import { SESSION_EVENTS } from '../../../packages/protocol/sessionEvents';
+import { SESSION_EVENTS, WORLD_JOIN_REJECTION } from '../../../packages/protocol/sessionEvents';
 import { PROTOCOL_VERSION } from '../../../packages/protocol/protocolVersion';
 import type { GameClientAction } from './gameReducer';
 import type {
@@ -69,10 +69,11 @@ export function useRoomConnection(dispatch: Dispatch<GameClientAction>) {
       clearReconnectTimer();
       reconnectAttemptsRef.current = 0;
       roomRef.current = room;
-    }).catch((error: unknown) => {
-      const message = error instanceof Error ? error.message : 'Connection rejected';
-      scheduleReconnect(message);
-    });
+    }).catch((error: unknown) => handleJoinFailure(error, {
+      dispatch,
+      scheduleReconnect,
+      stopReconnecting: () => { shouldReconnectRef.current = false; clearReconnectTimer(); },
+    }));
   };
 
   const disconnect = useCallback(() => {
@@ -132,6 +133,42 @@ async function joinWorldRoom(
   room.send(SESSION_EVENTS.requestGameState);
   room.send(SESSION_EVENTS.message, { type: 'RequestInventory' });
   return room;
+}
+
+// A join failure whose Colyseus `ServerError.code` marks it as an auth
+// rejection (missing/invalid/expired token). Everything else — network drops,
+// abnormal closes, matchmaking hiccups — carries a different code and stays on
+// the retry path. Exported for unit tests: the transient-vs-auth distinction is
+// the whole safety property (a transient drop must NOT clear the session).
+export function isUnauthorizedRejection(error: unknown): boolean {
+  return (
+    typeof error === 'object'
+    && error !== null
+    && (error as { code?: unknown }).code === WORLD_JOIN_REJECTION.unauthorized
+  );
+}
+
+// Route a failed world-join. An expired/invalid session token is unrecoverable
+// by retrying — every attempt re-presents the same dead token — so we stop the
+// reconnect loop and signal the app (via `sessionExpired`) to clear the session
+// and re-enter as a guest, instead of burning MAX_RECONNECT_ATTEMPTS and
+// stranding the player in 'rejected' with the world up, no hero, no login.
+// Any other failure stays on the reconnect path.
+function handleJoinFailure(
+  error: unknown,
+  ctx: {
+    dispatch: Dispatch<GameClientAction>;
+    scheduleReconnect: (reason: string) => void;
+    stopReconnecting: () => void;
+  },
+): void {
+  const message = error instanceof Error ? error.message : 'Connection rejected';
+  if (isUnauthorizedRejection(error)) {
+    ctx.stopReconnecting();
+    ctx.dispatch({ type: 'sessionExpired', message });
+    return;
+  }
+  ctx.scheduleReconnect(message);
 }
 
 function getColyseusUrl(): string {
