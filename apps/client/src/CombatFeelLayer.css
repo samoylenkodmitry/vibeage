@@ -1,0 +1,114 @@
+/* Screen-space half of the combat game-feel pass: the danger vignette, the
+   directional impact flash and the kill / level-up payoff beat.
+
+   Everything in here is edge-work on a `pointer-events: none` overlay that
+   sits UNDER the HUD in paint order (no z-index at all, so every later
+   positioned HUD sibling wins). The centre of the screen — where the target
+   under the cursor lives — is always fully transparent. */
+
+.combat-feel {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  /* The layer only ever paints; keep its animations off the rest of the
+     document's layout/paint work. */
+  contain: layout paint style;
+}
+
+.combat-feel__veil {
+  position: absolute;
+  inset: 0;
+  /* GPU-composited opacity only — no per-frame repaint of a gradient. */
+  will-change: opacity;
+}
+
+/* Low-health danger. Ramps with how close to death the player is; the ease-out
+   is what makes a heal feel like relief rather than a light switch. */
+.combat-feel__danger {
+  background:
+    radial-gradient(ellipse at 50% 50%, rgba(120, 6, 12, 0) 42%, rgba(120, 6, 12, 0.42) 78%, rgba(80, 2, 8, 0.72) 100%);
+  transition: opacity 520ms ease-out;
+}
+
+/* Heartbeat, quickening as death nears. Duration is set inline from the danger
+   level; the keyframes only say what a beat looks like. */
+.combat-feel__danger--critical {
+  animation-name: combat-feel-heartbeat;
+  animation-iteration-count: infinite;
+  animation-timing-function: ease-in-out;
+}
+
+@keyframes combat-feel-heartbeat {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}
+
+/* Directional impact flash. The gradient angle is set inline from where the
+   blow came from, so a hit in the back lights the bottom of the screen. */
+.combat-feel__flash {
+  background: linear-gradient(var(--flash-angle, 180deg), var(--flash-color, rgba(220, 38, 38, 0.5)) 0%, transparent 42%);
+  opacity: 0;
+  animation: combat-feel-flash 300ms ease-out forwards;
+}
+
+.combat-feel__flash--bloom {
+  background: radial-gradient(ellipse at 50% 55%, var(--flash-color, rgba(253, 224, 71, 0.34)) 0%, transparent 62%);
+}
+
+@keyframes combat-feel-flash {
+  0% { opacity: 0; }
+  18% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* Kill / level-up payoff. Centred but high enough to clear the target plate,
+   and gone before it can get in the way of the next pull. */
+.combat-feel__payoff {
+  position: absolute;
+  top: 28%;
+  left: 50%;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  transform: translateX(-50%);
+  text-align: center;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.85), 0 0 26px rgba(250, 204, 21, 0.55);
+  animation: combat-feel-payoff 1400ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.combat-feel__payoff-title {
+  color: #fde68a;
+  font-size: clamp(22px, 6vw, 40px);
+  font-weight: 900;
+  letter-spacing: 0.16em;
+}
+
+.combat-feel__payoff-sub {
+  color: #fef9c3;
+  font-size: clamp(11px, 2.6vw, 14px);
+  font-weight: 700;
+  letter-spacing: 0.28em;
+  opacity: 0.86;
+}
+
+@keyframes combat-feel-payoff {
+  0% { opacity: 0; transform: translateX(-50%) scale(0.82); }
+  14% { opacity: 1; transform: translateX(-50%) scale(1.06); }
+  70% { opacity: 1; transform: translateX(-50%) scale(1); }
+  100% { opacity: 0; transform: translateX(-50%) scale(1); }
+}
+
+/* Every moving part off, every readable part kept: the danger tint still ramps
+   (it is information), it just stops beating, flashing and scaling. */
+@media (prefers-reduced-motion: reduce) {
+  .combat-feel__danger--critical { animation: none; }
+  .combat-feel__flash { animation: none; opacity: 0; }
+  .combat-feel__payoff {
+    animation: combat-feel-payoff-static 1400ms linear forwards;
+  }
+  @keyframes combat-feel-payoff-static {
+    0%, 92% { opacity: 1; transform: translateX(-50%); }
+    100% { opacity: 0; transform: translateX(-50%); }
+  }
+}
