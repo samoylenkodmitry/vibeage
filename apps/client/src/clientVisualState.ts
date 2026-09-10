@@ -469,7 +469,7 @@ function addItemUseVisualEvent(
   return nextState;
 }
 
-function addCombatLine(state: GameClientState, line: CombatLine): GameClientState {
+export function addCombatLine(state: GameClientState, line: CombatLine): GameClientState {
   // §52 polish — collapse consecutive duplicates so spamming a
   // skill on cooldown reads as one line with "(×N)" instead of N
   // identical lines. Match on `text` only; the id is per-emit so
@@ -687,7 +687,7 @@ function getSkillDef(skillId: string): (typeof SKILLS)[keyof typeof SKILLS] | nu
   return skill;
 }
 
-function makeCombatLineId(castId: string, currentLineCount: number, now: number): string {
+export function makeCombatLineId(castId: string, currentLineCount: number, now: number): string {
   return `${castId}:${now}:${currentLineCount}`;
 }
 

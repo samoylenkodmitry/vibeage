@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { GameClientState } from '../gameTypes';
+import './BossTelegraphBar.css';
 
 type BossTelegraphBarProps = {
   telegraphs: GameClientState['bossTelegraphs'];
@@ -45,6 +46,14 @@ export function BossTelegraphBar({ telegraphs }: BossTelegraphBarProps) {
       <header className="boss-telegraph-bar__header">
         <strong className="boss-telegraph-bar__name">{active.bossName}</strong>
         <span className="boss-telegraph-bar__ability">{active.abilityName}</span>
+        {/* Every other wind-up breaks to a stun or a knockback. Saying so
+            here is what stops a player burning a control cooldown on the
+            one cast that will land regardless. */}
+        {active.unstoppable && (
+          <span className="boss-telegraph-bar__unstoppable" title="This wind-up cannot be interrupted">
+            Unstoppable
+          </span>
+        )}
         <span className="boss-telegraph-bar__eta">{(remainingMs / 1000).toFixed(1)}s</span>
       </header>
       <div className="boss-telegraph-bar__track">

@@ -20,8 +20,6 @@ import {
   applyCastRejected,
   applyCastSnapshotVisualState,
   applyCombatLogVisualState,
-  applyEnemyAttackVisualState,
-  applyBossTelegraphFeedback,
   applyEnemyDeathFeedback,
   applyEquipRejected,
   applyEquipmentChangeFeedback,
@@ -40,6 +38,7 @@ import {
   applySkillLearnedFeedback,
   pruneClientVisualState,
 } from './clientVisualState';
+import { applyCombatPresentationMessage } from './combatPresentation';
 import { applyReactionTriggeredVisualState } from './reactionVfxState';
 import { applyGameStateSnapshot } from './clientGameStateSnapshot';
 import { mergeVec3, normalizeVec3 } from './vec3';
@@ -304,13 +303,8 @@ function applyServerMessage(
 
   if (message.type === 'SystemMessage') return applySystemMessage(state, message, now);
 
-  if (message.type === 'EnemyAttack') {
-    return applyEnemyAttackVisualState(state, message, now);
-  }
-
-  if (message.type === 'BossTelegraph') {
-    return applyBossTelegraph(state, message, now);
-  }
+  const combatPresentation = applyCombatPresentationMessage(state, message, now);
+  if (combatPresentation) return combatPresentation;
 
   if (message.type === 'InventoryUpdate') {
     return applyInventoryUpdate(state, message.inventory, message.maxInventorySlots, message.playerId);
@@ -522,33 +516,6 @@ function applyEquipmentUpdate(
     equipment[entry.slot] = entry.itemId;
   }
   return { ...state, equipment };
-}
-
-function applyBossTelegraph(
-  state: GameClientState,
-  message: ServerMessage & { type: 'BossTelegraph' },
-  now: number,
-): GameClientState {
-  const entry = {
-    enemyId: message.enemyId,
-    bossName: message.bossName,
-    abilityName: message.abilityName,
-    x: message.x,
-    z: message.z,
-    radius: message.radius,
-    innerRadius: message.innerRadius,
-    directionRad: message.directionRad,
-    halfAngleDeg: message.halfAngleDeg,
-    startedAt: now,
-    impactAt: message.impactAt,
-  };
-  // Replace any prior telegraph from the same enemy — a boss only
-  // ever has one channel in flight at a time.
-  const next = state.bossTelegraphs.filter((t) => t.enemyId !== message.enemyId);
-  next.push(entry);
-  // §49/M2 — also surface the ability start in the combat log so the
-  // player gets a text confirmation alongside the ground-ring VFX.
-  return applyBossTelegraphFeedback({ ...state, bossTelegraphs: next }, message, now);
 }
 
 function applySkillLearned(

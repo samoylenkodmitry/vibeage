@@ -305,6 +305,12 @@ type BossTelegraphEntry = {
   enemyId: string;
   bossName: string;
   abilityName: string;
+  /**
+   * The ability opted out of interruption. Worth surfacing: every other
+   * wind-up can be broken by a stun or a knockback, so a player who
+   * isn't told will burn a control cooldown on the one that can't be.
+   */
+  unstoppable?: boolean;
   x: number;
   z: number;
   radius: number;
