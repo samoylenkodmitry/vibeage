@@ -12,9 +12,7 @@ import { SPEC_GEAR_DROPS } from './specGear.js';
  * here automatically reaches both the runtime drop pipeline and the
  * wiki "Dropped by" cross-link.
  */
-export const SUPPLEMENTAL_DROPS: Record<string, readonly LootDrop[]> = {
-  // §5 — each specialization set drops complete off one named boss.
-  ...SPEC_GEAR_DROPS,
+const MATERIAL_DROPS: Record<string, readonly LootDrop[]> = {
   // Materials by biome affinity — fills the obtainability gap for
   // every "essence / shard / petal / fragment" the wiki lists.
   ice_giant_loot: [
@@ -78,3 +76,21 @@ export const SUPPLEMENTAL_DROPS: Record<string, readonly LootDrop[]> = {
     { itemId: 'phoenix_feather', quantity: { min: 1, max: 1 }, chance: 0.05 },
   ],
 };
+
+/**
+ * §5 — specialization set pieces, appended to whichever table their
+ * set names. Appended rather than object-spread: the two sources
+ * overlap on tables like `time_wraith_loot`, and a spread would let
+ * whichever key came second silently replace the other's drops —
+ * which is exactly how a set becomes unobtainable without anything
+ * turning red until `equipmentSetObtainable` catches it.
+ */
+export const SUPPLEMENTAL_DROPS: Record<string, readonly LootDrop[]> = (() => {
+  const out: Record<string, LootDrop[]> = {};
+  for (const source of [MATERIAL_DROPS, SPEC_GEAR_DROPS]) {
+    for (const [tableId, drops] of Object.entries(source)) {
+      (out[tableId] ??= []).push(...drops);
+    }
+  }
+  return out;
+})();

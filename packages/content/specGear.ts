@@ -1,4 +1,5 @@
 import type { EquipmentSet } from './equipmentSets.js';
+import { FRONTIER_GEAR_SPECS } from './specGearFrontier.js';
 import type { Item } from './items.js';
 import type { LootDrop } from './lootTables.js';
 
@@ -24,7 +25,7 @@ import type { LootDrop } from './lootTables.js';
  * likes stack pDef/mDef/hp.
  */
 
-type SpecGearPieceSpec = {
+export type SpecGearPieceSpec = {
   id: string;
   name: string;
   description: string;
@@ -32,7 +33,7 @@ type SpecGearPieceSpec = {
   stats: Item['stats'];
 };
 
-type SpecGearSetSpec = {
+export type SpecGearSetSpec = {
   setId: string;
   name: string;
   grade: NonNullable<Item['grade']>;
@@ -50,7 +51,7 @@ type SpecGearSetSpec = {
 const ROBE = { armorType: 'robe' } as const;
 const HEAVY = { armorType: 'heavy' } as const;
 
-const SPEC_GEAR_SPECS: readonly SpecGearSetSpec[] = [
+const BASE_GEAR_SPECS: readonly SpecGearSetSpec[] = [
   {
     setId: 'graveglow_vestments',
     name: 'Graveglow Vestments',
@@ -225,10 +226,18 @@ const SPEC_GEAR_SPECS: readonly SpecGearSetSpec[] = [
   },
 ];
 
+/**
+ * The second pass's sets (mage C/B, paladin C, rogue B, warrior B)
+ * live in their own file to keep this one under the line cap; they
+ * share every builder below.
+ */
+const SPEC_GEAR_SPECS: readonly SpecGearSetSpec[] = [...BASE_GEAR_SPECS, ...FRONTIER_GEAR_SPECS];
+
 /** Armor pieces weigh more than robes; keep it coarse but non-uniform. */
 function pieceWeight(piece: SpecGearPieceSpec): number {
   if (piece.equip?.bodyPart === 'shield') return 3200;
   if (piece.equip?.armorType === 'heavy') return 1800;
+  if (piece.equip?.armorType === 'light') return 900;
   return 700;
 }
 
