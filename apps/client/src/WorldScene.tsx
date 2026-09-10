@@ -6,6 +6,7 @@ import { WORLD_SETTINGS } from '../../../packages/content/world';
 import { type VecXZ, type CastSnapshot } from '../../../packages/protocol/messages';
 import type { GameClientState } from './gameTypes';
 import { WorldEventVfx } from './SceneEventVfx';
+import { CombatImpactVfx } from './CombatImpactVfx';
 import { WorldEnvironment } from './WorldEnvironment';
 import { WorldFeatures } from './WorldFeatures';
 import { ZoneLandmarks } from './ZoneLandmarks';
@@ -225,9 +226,7 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
 
       <WorldLootMarkers state={state} onPickUpLoot={onPickUpLoot} revealed={lootRevealed} activeTimeFields={activeTimeFields} now={now} />
       <WorldCastMarkers state={state} activeTimeFields={activeTimeFields} now={now} />
-      {Object.values(state.visualEvents).map((event) => (
-        <WorldEventVfx key={event.id} event={event} />
-      ))}
+      <WorldVisualEvents events={state.visualEvents} />
       <CameraRig
         focus={focus}
         presentationFocusRef={cameraAnchorRef}
@@ -239,6 +238,20 @@ export function WorldScene({ state, onMove, onSelectTarget, onAttackTarget, onPi
     </Canvas>
     {contextLost && <RendererContextLostOverlay />}
     </WebGLGate>
+  );
+}
+
+/** Hits get the combat-feel impact (severity-scaled punch, crit/kill burst);
+ *  every other visual event keeps the generic world VFX. */
+function WorldVisualEvents({ events }: { events: GameClientState['visualEvents'] }) {
+  return (
+    <>
+      {Object.values(events).map((event) => (
+        event.kind === 'damage'
+          ? <CombatImpactVfx key={event.id} event={event} />
+          : <WorldEventVfx key={event.id} event={event} />
+      ))}
+    </>
   );
 }
 
