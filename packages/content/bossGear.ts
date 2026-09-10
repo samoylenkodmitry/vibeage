@@ -309,6 +309,7 @@ export const BOSS_GEAR_SETS: Record<string, EquipmentSet> = {
     setId: 'wildlands_hunter',
     name: 'Wildlands Hunter',
     requiredPieces: ['chieftains_cleaver', 'greyfang_leathers'],
+    intendedSpecs: ['berserker', 'slayer', 'treasure_hunter', 'plains_walker'],
     bonuses: [
       { requiredCount: 2, statModifiers: { pAtk: 10, hp: 30, moveSpeed: 0.1 } },
     ],
@@ -317,6 +318,7 @@ export const BOSS_GEAR_SETS: Record<string, EquipmentSet> = {
     setId: 'veiled_mantle',
     name: 'Veiled Mantle',
     requiredPieces: ['fogbound_cloak', 'marrow_focus', 'hollow_dagger'],
+    intendedSpecs: ['treasure_hunter', 'plains_walker'],
     bonuses: [
       { requiredCount: 2, statModifiers: { mAtk: 10, mp: 20 } },
       { requiredCount: 3, statModifiers: { mAtk: 22, mp: 50, critRate: 5 } },
@@ -332,6 +334,7 @@ export const BOSS_GEAR_SETS: Record<string, EquipmentSet> = {
     setId: 'elementborn',
     name: 'Elementborn',
     requiredPieces: ['embers_edge', 'forge_avatar_plate', 'tundra_helm'],
+    intendedSpecs: ['berserker', 'slayer', 'templar_knight', 'dark_avenger'],
     bonuses: [
       { requiredCount: 2, statModifiers: { pDef: 15, hp: 20 } },
       { requiredCount: 3, statModifiers: { pDef: 50, hp: 100, mDef: 32, pAtk: 28 } },
@@ -341,6 +344,7 @@ export const BOSS_GEAR_SETS: Record<string, EquipmentSet> = {
     setId: 'worldspine_regalia',
     name: 'Worldspine Regalia',
     requiredPieces: ['vinebound_bow', 'tidal_crown', 'dawnfeather_ring', 'hourglass_pendant'],
+    intendedSpecs: ['hawkeye', 'phantom_ranger'],
     bonuses: [
       { requiredCount: 2, statModifiers: { mAtk: 20, mp: 20 } },
       { requiredCount: 3, statModifiers: { mAtk: 40, mp: 60, attackSpeed: 8 } },

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { EQUIPMENT_SETS, type EquipmentSet } from '../packages/content/equipmentSets';
+import { EQUIPMENT_SETS, getSetGrade, type EquipmentSet } from '../packages/content/equipmentSets';
 import { ITEMS } from '../packages/content/items';
 
 /**
@@ -8,11 +8,12 @@ import { ITEMS } from '../packages/content/items';
  * Tier" chip becomes a lie and the player's progression reads as
  * incoherent.
  *
- * Currently informational — failing sets are reported but the
- * spec passes. Flip `STRICT_GRADE_GATE` to true once every set has
- * been normalized so a future regression actually breaks CI.
+ * Enforcing: every shipped set is single-grade, so the wiki Sets
+ * tab's "mixed tiers" annotation is unreachable and `getSetGrade`
+ * is a lookup rather than a guess. `optionalPieces` count too — an
+ * optional piece at a different grade would still show a second
+ * tier chip on the set page.
  */
-const STRICT_GRADE_GATE = true;
 
 describe('equipment sets — single-grade invariant', () => {
   const allSets = Object.values(EQUIPMENT_SETS);
@@ -20,7 +21,7 @@ describe('equipment sets — single-grade invariant', () => {
   it('every set has at least one piece in ITEMS', () => {
     for (const set of allSets) {
       expect(set.requiredPieces.length).toBeGreaterThan(0);
-      for (const id of set.requiredPieces) {
+      for (const id of [...set.requiredPieces, ...(set.optionalPieces ?? [])]) {
         expect(ITEMS[id], `set ${set.setId} references unknown item ${id}`).toBeDefined();
       }
     }
@@ -35,12 +36,15 @@ describe('equipment sets — single-grade invariant', () => {
         + 'Flip STRICT_GRADE_GATE in this file to true once these are normalized.',
       );
     }
-    if (STRICT_GRADE_GATE) {
-      expect(violations, formatViolations(violations)).toEqual([]);
-    } else {
-      // Informational mode: as long as we can iterate, the gate is
-      // wired correctly even if it isn't enforcing yet.
-      expect(violations).toBeDefined();
+    expect(violations, formatViolations(violations)).toEqual([]);
+  });
+
+  it('getSetGrade agrees with the single grade on the pieces', () => {
+    for (const set of allSets) {
+      const grade = getSetGrade(set, ITEMS);
+      for (const id of [...set.requiredPieces, ...(set.optionalPieces ?? [])]) {
+        expect(ITEMS[id]?.grade ?? 'none', `${set.setId} piece ${id}`).toBe(grade);
+      }
     }
   });
 });
@@ -49,7 +53,7 @@ function listGradeMixingSets(sets: readonly EquipmentSet[]): { setId: string; gr
   const out: { setId: string; grades: string[] }[] = [];
   for (const set of sets) {
     const grades = new Set<string>();
-    for (const id of set.requiredPieces) {
+    for (const id of [...set.requiredPieces, ...(set.optionalPieces ?? [])]) {
       const grade = ITEMS[id]?.grade ?? 'none';
       grades.add(grade);
     }

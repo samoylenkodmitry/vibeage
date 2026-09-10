@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { EQUIPMENT_SETS, getSetsForClass } from '../packages/content/equipmentSets';
+import { EQUIPMENT_SETS, getSetGrade, getSetsForSpec } from '../packages/content/equipmentSets';
 import { ITEMS } from '../packages/content/items';
 import { SPECIALIZATIONS } from '../packages/content/specializations';
 import { listGradeSpecs } from '../packages/content/equipmentTypes';
@@ -24,15 +24,11 @@ describe('spec × grade set coverage (§5 bullet 2 surveyor)', () => {
     const matrix: Record<string, Record<string, string[]>> = {};
     for (const spec of specs) {
       matrix[spec.id] = {};
-      const setIds = getSetsForClass(spec.baseClass, ITEMS);
+      const setIds = getSetsForSpec(spec.id, spec.baseClass, ITEMS);
       for (const setId of setIds) {
         const set = EQUIPMENT_SETS[setId];
         if (!set) continue;
-        let grade = 'none';
-        for (const itemId of set.requiredPieces) {
-          const g = ITEMS[itemId]?.grade;
-          if (g && g !== 'none') { grade = g; break; }
-        }
+        const grade = getSetGrade(set, ITEMS);
         if (!matrix[spec.id][grade]) matrix[spec.id][grade] = [];
         matrix[spec.id][grade].push(setId);
       }
@@ -58,6 +54,26 @@ describe('spec × grade set coverage (§5 bullet 2 surveyor)', () => {
     // uncomment the next line.
     // console.log('\n' + report);
     void report;
+  });
+
+  it('every specialization has at least one set tuned for it', () => {
+    // §5 bullet 2's floor: a player who picks a spec must see a
+    // gear path written for that spec, not just "robes you can
+    // technically wear". Sets declare `intendedSpecs`; this asserts
+    // the declaration covers all 14 specs.
+    const uncovered = Object.values(SPECIALIZATIONS)
+      .filter((spec) => !Object.values(EQUIPMENT_SETS).some((set) => set.intendedSpecs?.includes(spec.id)))
+      .map((spec) => spec.id);
+    expect(uncovered, `specs with no tuned set: ${uncovered.join(', ')}`).toEqual([]);
+  });
+
+  it('every tuned set is single-grade and reachable at that grade', () => {
+    for (const set of Object.values(EQUIPMENT_SETS)) {
+      if (!set.intendedSpecs) continue;
+      expect(getSetGrade(set, ITEMS), `${set.setId} grade`).not.toBe('none');
+      // Two bonus tiers is the §5 contract for a spec set.
+      expect(set.bonuses.length, `${set.setId} bonus tiers`).toBeGreaterThanOrEqual(1);
+    }
   });
 
   it('every grade is covered by at least one set somewhere', () => {

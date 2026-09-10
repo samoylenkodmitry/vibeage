@@ -3,6 +3,7 @@ import { BOSS_GEAR_ITEMS } from './bossGear.js';
 import { MEADOW_TROPHY_RECIPE_ITEMS } from './meadowTrophies.js';
 import { BOSS_TROPHY_ITEMS } from './miniBosses.js';
 import { PROGRESSION_GEAR_ITEMS } from './progressionGear.js';
+import { SPEC_GEAR_ITEMS } from './specGear.js';
 import type {
   EquipSpec,
   ItemFlag,
@@ -589,6 +590,7 @@ const ITEM_DEFS: Record<ItemId, Item> = {
   ...BOSS_TROPHY_ITEMS,
   ...BOSS_GEAR_ITEMS,
   ...PROGRESSION_GEAR_ITEMS,
+  ...SPEC_GEAR_ITEMS,
   ...MEADOW_TROPHY_RECIPE_ITEMS,
 };
 
