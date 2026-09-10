@@ -99,6 +99,7 @@ export const PROGRESSION_GEAR_SETS: Record<string, EquipmentSet> = {
     setId: 'roadwarden_kit',
     name: 'Roadwarden Kit',
     requiredPieces: ['firebreak_sash', 'starward_visor', 'moonfall_cloak'],
+    intendedSpecs: ['hawkeye', 'phantom_ranger'],
     bonuses: [
       { requiredCount: 2, statModifiers: { pDef: 16, mDef: 12, hp: 30 } },
       { requiredCount: 3, statModifiers: { pDef: 34, mDef: 34, hp: 75, moveSpeed: 0.2 } },
@@ -108,6 +109,7 @@ export const PROGRESSION_GEAR_SETS: Record<string, EquipmentSet> = {
     setId: 'horizon_watch',
     name: 'Horizon Watch',
     requiredPieces: ['marshward_boots', 'riftcall_gloves', 'zero_hour_loop'],
+    intendedSpecs: ['templar_knight', 'dark_avenger', 'phoenix_knight', 'evas_templar'],
     bonuses: [
       { requiredCount: 2, statModifiers: { pDef: 26, mDef: 26, hp: 45 } },
       { requiredCount: 3, statModifiers: { pDef: 54, mDef: 54, hp: 110, attackSpeed: 12 } },

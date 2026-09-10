@@ -1,7 +1,9 @@
 import { BOSS_GEAR_SETS } from './bossGear.js';
 import { ITEMS, type ItemId } from './items.js';
-import { occupiedSlotsForSpec, type EquipSlot, type ItemStatBlock } from './equipmentTypes.js';
+import { GRADE_SPECS, occupiedSlotsForSpec, type EquipSlot, type ItemGrade, type ItemStatBlock } from './equipmentTypes.js';
 import { PROGRESSION_GEAR_SETS } from './progressionGear.js';
+import { SPEC_GEAR_SETS } from './specGear.js';
+import type { SpecializationId } from './specializations.js';
 
 export type EquipmentSetId = string;
 
@@ -16,6 +18,14 @@ export type EquipmentSet = {
   requiredPieces: readonly ItemId[];
   optionalPieces?: readonly ItemId[];
   bonuses: readonly SetBonus[];
+  /**
+   * Specializations this set's bonus tiers were tuned for (§5
+   * bullet 2). Declared data, not inferred: the armor-type
+   * heuristic below can't tell a Cardinal's robe set from an
+   * Arcanist's. The wiki Specs tab prefers this when present and
+   * only falls back to the heuristic for untagged legacy sets.
+   */
+  intendedSpecs?: readonly SpecializationId[];
 };
 
 export const EQUIPMENT_SETS: Record<EquipmentSetId, EquipmentSet> = {
@@ -36,7 +46,27 @@ export const EQUIPMENT_SETS: Record<EquipmentSetId, EquipmentSet> = {
   },
   ...BOSS_GEAR_SETS,
   ...PROGRESSION_GEAR_SETS,
+  ...SPEC_GEAR_SETS,
 };
+
+/**
+ * The one grade a set ships at. §5 bullet 1 makes single-grade an
+ * invariant (`equipmentSetSameGrade.spec.ts`), so this is a lookup
+ * rather than a vote — it returns the highest-ranked grade found so
+ * a hypothetical regression degrades to "the tier you must reach to
+ * finish the set" instead of throwing.
+ *
+ * Single source of truth for the wiki Sets tab chip, the Specs tab
+ * gear path, and the validation specs.
+ */
+export function getSetGrade(set: EquipmentSet, items: Record<ItemId, { grade?: ItemGrade }>): ItemGrade {
+  let top: ItemGrade = 'none';
+  for (const id of [...set.requiredPieces, ...(set.optionalPieces ?? [])]) {
+    const grade = items[id]?.grade ?? 'none';
+    if (GRADE_SPECS[grade].rank > GRADE_SPECS[top].rank) top = grade;
+  }
+  return top;
+}
 
 /**
  * Single source of truth for "how many pieces of this set can a
@@ -152,6 +182,30 @@ export function getSetsForClass(
     if (matches) out.push(set.setId);
   }
   return out;
+}
+
+/**
+ * §5 bullet 3 — the gear path a player sees when they pick a
+ * specialization. Prefers the declared `intendedSpecs` and only
+ * falls back to the class armor-type heuristic for legacy sets
+ * that predate the field, so a Cardinal no longer sees every robe
+ * set in the game listed as "yours".
+ *
+ * Returns set ids sorted low → high grade so the wiki renders a
+ * readable D → S progression without re-sorting.
+ */
+export function getSetsForSpec(
+  specId: SpecializationId,
+  baseClass: string,
+  items: Record<ItemId, { grade?: ItemGrade; equip?: { armorType?: ArmorTypeHint } }>,
+): EquipmentSetId[] {
+  const tagged = Object.values(EQUIPMENT_SETS).filter((set) => set.intendedSpecs?.includes(specId));
+  const untaggedForClass = getSetsForClass(baseClass, items)
+    .map((id) => EQUIPMENT_SETS[id])
+    .filter((set) => set && !set.intendedSpecs);
+  return [...tagged, ...untaggedForClass]
+    .sort((a, b) => GRADE_SPECS[getSetGrade(a, items)].rank - GRADE_SPECS[getSetGrade(b, items)].rank)
+    .map((set) => set.setId);
 }
 
 export function activeSetBonuses(
