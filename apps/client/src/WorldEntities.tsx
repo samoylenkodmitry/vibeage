@@ -15,10 +15,10 @@ import {
   EnemyHealthBar,
   EnemyHitFlash,
   EnemyThreatRing,
-  LootMarker,
   SelectedEnemyBeacon,
   SelectedEnemyRing,
 } from './SceneVfx';
+import { LootMarker } from './LootMarker';
 import { NameLabel } from './NameLabel';
 import { enemyThreat, threatNameplateStyle } from './enemyThreat';
 import { StatusEffectsVfx } from './vfx/statusFx';
