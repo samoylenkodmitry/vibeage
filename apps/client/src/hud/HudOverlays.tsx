@@ -10,6 +10,7 @@ import { BossTelegraphBar } from './BossTelegraphBar';
 import { BossTelegraphCue } from './BossTelegraphCue';
 import { ChatReceiveCue } from './ChatReceiveCue';
 import { CombatSfxBridge } from './CombatSfxBridge';
+import { EventCueBridge } from './EventCueBridge';
 import { GainBurst } from './GainBurst';
 import { HitShake } from './HitShake';
 import { HurtVignette } from './HurtVignette';
@@ -75,6 +76,7 @@ export function HudOverlays({ state, player, cameraAngleRef }: HudOverlaysProps)
           />
           <LevelUpBurst level={player.level} />
           <QuestCompleteBurst completed={player.questState?.completed ?? []} />
+          <EventCueBridge combatLog={state.combatLog} questActive={player.questState?.active} />
         </>
       )}
     </>
