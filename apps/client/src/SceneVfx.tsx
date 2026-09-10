@@ -1,28 +1,10 @@
-import { memo, useEffect, useMemo, useRef, useState } from 'react';
-import { useFrame, type ThreeEvent } from '@react-three/fiber';
+import { useEffect, useMemo, useRef } from 'react';
+import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { CastState, type CastSnapshot } from '../../../packages/protocol/messages';
-import { ITEMS, getItemGrade } from '../../../packages/content/items';
-import { getGradeSpec } from '../../../packages/content/equipmentTypes';
-function pickBestGradeColor(items: readonly { itemId: string }[]): string {
-  let bestRank = -1;
-  let bestColor = items.length > 1 ? '#facc15' : '#eab308';
-  for (const i of items) {
-    const item = ITEMS[i.itemId];
-    if (!item) continue;
-    const spec = getGradeSpec(getItemGrade(item));
-    if (spec.rank > bestRank) {
-      bestRank = spec.rank;
-      bestColor = spec.color;
-    }
-  }
-  return bestColor;
-}
-import type { EnemyEntity, GroundLootStack, Vec3 } from './gameTypes';
+import type { EnemyEntity, Vec3 } from './gameTypes';
 import { Billboard } from './SceneEventVfx';
-import { NameLabel } from './NameLabel';
 import { getTerrainY } from './worldSceneConfig';
-import { GlowEmitter } from './dynamicLights';
 import {
   SpellCore, SpellProjectile, EruptImpact, FLYING_MECHANICS, arcLift, spiralOffset, type SpellMechanic,
 } from './vfx/spellFx';
@@ -36,12 +18,6 @@ import { skillThemeFor, skillArchetype, type SkillTheme } from './vfx/skillTheme
 import { ArchetypeImpact } from './vfx/archetypeFx';
 import { TimeSphereDome } from './vfx/timeSphereFx';
 
-const LOOT_SPARKS = [
-  { angle: 0.2, height: 0.28, radius: 0.72 },
-  { angle: 1.7, height: 0.45, radius: 0.58 },
-  { angle: 3.1, height: 0.34, radius: 0.68 },
-  { angle: 4.6, height: 0.52, radius: 0.5 },
-];
 
 // Element-distinct projectile tail. `rise` drifts each bead up (fire heat /
 // holy light) or down (poison drip); `grow` billows the tail wider (smoke);
@@ -418,101 +394,6 @@ function ProjectileTrail({ theme, longZ = 1, frozen = false }: { theme: SkillThe
     </group>
   );
 }
-
-function LootMarkerImpl({
-  loot,
-  onPickUpLoot,
-  revealed = false,
-  frozen = false,
-}: {
-  loot: GroundLootStack;
-  onPickUpLoot: (lootId: string) => void;
-  /** Treasure Sense — show the loot's name without hovering. */
-  revealed?: boolean;
-  frozen?: boolean;
-}) {
-  const meshRef = useRef<THREE.Mesh>(null);
-  const sparkGroupRef = useRef<THREE.Group>(null);
-  // Pile color reflects the best item in the pile so rare drops
-  // read different from common ones across the field.
-  const color = useMemo(() => pickBestGradeColor(loot.items), [loot.items]);
-  const sparks = useMemo(() => LOOT_SPARKS, []);
-  // §46/slice-new — cursor-hover label. Derived client-side from
-  // ITEMS[itemId] so the server never has to ship the display name
-  // with the LootSpawn payload. Stacked drops show "Item A +N more".
-  const [hovered, setHovered] = useState(false);
-  const labelText = useMemo(() => {
-    const first = loot.items[0];
-    if (!first) return '';
-    const name = ITEMS[first.itemId]?.name ?? first.itemId;
-    const moreStacks = loot.items.length - 1;
-    return moreStacks > 0 ? `${name} +${moreStacks} more` : name;
-  }, [loot.items]);
-
-  useFrame(({ clock }, delta) => {
-    if (frozen) return;
-    if (meshRef.current) {
-      meshRef.current.position.y = Math.sin(clock.elapsedTime * 2.4) * 0.08;
-      meshRef.current.rotation.y += delta * 1.4;
-    }
-
-    if (sparkGroupRef.current) {
-      sparkGroupRef.current.rotation.y += delta * 1.1;
-    }
-  });
-
-  function handlePointerDown(event: ThreeEvent<PointerEvent>) {
-    if (event.button !== 0) {
-      return;
-    }
-
-    event.stopPropagation();
-    onPickUpLoot(loot.id);
-  }
-
-  return (
-    <group position={[loot.position.x, getTerrainY(loot.position.x, loot.position.z) + 0.42, loot.position.z]}>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.38, 0]}>
-        <ringGeometry args={[0.62, 0.8, 28]} />
-        <meshBasicMaterial color="#facc15" transparent opacity={0.45} side={THREE.DoubleSide} />
-      </mesh>
-      <mesh
-        ref={meshRef}
-        castShadow
-        onPointerDown={handlePointerDown}
-        onPointerOver={(e) => { e.stopPropagation(); setHovered(true); }}
-        onPointerOut={() => setHovered(false)}
-      >
-        <boxGeometry args={[0.62, 0.62, 0.62]} />
-        <meshStandardMaterial color={color} emissive="#7c4a03" emissiveIntensity={0.75} roughness={0.48} />
-      </mesh>
-      {(hovered || revealed) && labelText ? (
-        <NameLabel text={labelText} color="#fde68a" yOffset={1.1} height={0.42} />
-      ) : null}
-      <GlowEmitter color={color} intensity={1.6} distance={7} priority={2} />
-      <group ref={sparkGroupRef}>
-        {sparks.map((spark) => (
-          <mesh
-            key={spark.angle}
-            position={[
-              Math.cos(spark.angle) * spark.radius,
-              spark.height,
-              Math.sin(spark.angle) * spark.radius,
-            ]}
-          >
-            <sphereGeometry args={[0.055, 8, 8]} />
-            <meshBasicMaterial color="#fff7ad" transparent opacity={0.78} depthWrite={false} />
-          </mesh>
-        ))}
-      </group>
-    </group>
-  );
-}
-
-// Memoized: a ground-loot pile is static once dropped (position +
-// items don't change), and onPickUpLoot is a stable callback, so
-// shallow compare skips re-rendering every pile on each snapshot.
-export const LootMarker = memo(LootMarkerImpl);
 
 export function SelectedEnemyRing() {
   const outerRef = useRef<THREE.Mesh>(null);
