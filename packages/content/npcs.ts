@@ -172,6 +172,17 @@ export const QUEST_NPCS: Record<string, QuestNpcDef> = {
     description: 'Maintains cutlines across Sunspire when the steppe fires start moving like weather.',
     greet: "Stay upwind of the drakes. The cutline only matters if someone lives to redraw it.",
   },
+  // Stationed a short walk from Luma's chart table: the Nightbell
+  // chain starts where the route already stops at Lv 32-34, so the
+  // player never crosses a region just to pick the line up.
+  bellwright_odris: {
+    id: 'bellwright_odris',
+    name: 'Bellwright Odris',
+    title: 'Keeper of the Warning Line',
+    position: { x: -318_300, y: 0.5, z: -259_400 },
+    description: 'Casts and hangs the warning bells that let one frontier station tell the next that something is coming. Counts the silences instead of the ringings, and has been counting more of them lately.',
+    greet: "Six stations west of here, and only mine still answers. Sit down — no, actually, don't.",
+  },
   star_chartist_luma: {
     id: 'star_chartist_luma',
     name: 'Luma',
@@ -179,6 +190,17 @@ export const QUEST_NPCS: Record<string, QuestNpcDef> = {
     position: { x: -318_700, y: 0.5, z: -259_100 },
     description: 'Maps Moonfall by watching what the stars refuse to illuminate twice.',
     greet: "The sky is lying again. Help me mark exactly where.",
+  },
+  // Eastern end of the Nightbell Line, stationed a lamp's walk from
+  // Orrin so the Lv 36-39 chain rides the route the player already
+  // takes to the March for the silence pact.
+  nightbell_warden_hesk: {
+    id: 'nightbell_warden_hesk',
+    name: 'Hesk',
+    title: 'Nightbell Warden',
+    position: { x: 150_960, y: 0.5, z: 388_160 },
+    description: 'Holds the last bell on the warning line and keeps a tally of every ringing nobody pulled. Orrin sends her the patrols who have stopped sleeping.',
+    greet: "Two rings last night. Nobody was on the rope either time. Still want the work?",
   },
   marsh_marshal_orrin: {
     id: 'marsh_marshal_orrin',

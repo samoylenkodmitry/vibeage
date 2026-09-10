@@ -1,6 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type ComponentProps } from 'react';
 import { GameHud } from './Hud';
 import { ActionFeedbackFlash } from './hud/ActionFeedbackFlash';
+import { CombatFeelLayer } from './CombatFeelLayer';
 import { IdentityLayer } from './IdentityLayer';
 import { loadSession } from './accountSession';
 import { planAutoEnter } from './autoEnter';
@@ -138,6 +139,9 @@ export default function App() {
         touchClaimRef={touchClaimRef}
         navigationMarker={navigationMarker}
       />
+      {/* Between the world and the HUD on purpose: the feel layer has no
+          z-index, so every HUD panel after it paints on top. */}
+      <CombatFeelLayer state={state} cameraAngleRef={cameraAngleRef} />
       <GameHud
         state={state}
         cameraAngleRef={cameraAngleRef}

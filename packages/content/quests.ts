@@ -1,5 +1,6 @@
 import { ITEMS } from './items.js';
 import { MIDGAME_BEAT_QUESTS } from './midgameQuests.js';
+import { NIGHTBELL_QUESTS } from './nightbellQuests.js';
 import { PROGRESSION_BRIDGE_QUESTS } from './progressionBridgeQuests.js';
 import { HIGH_PROGRESSION_QUESTS } from './progressionQuests.js';
 import { SPECIALIZATION_UNLOCK_LEVEL } from './specializations.js';
@@ -612,6 +613,7 @@ export const QUESTS: Record<QuestId, QuestDef> = {
   ...MIDGAME_BEAT_QUESTS,
   ...PROGRESSION_BRIDGE_QUESTS,
   ...HIGH_PROGRESSION_QUESTS,
+  ...NIGHTBELL_QUESTS,
 };
 
 /** All quests offered by an NPC. */
