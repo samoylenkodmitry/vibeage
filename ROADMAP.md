@@ -23,6 +23,26 @@ Production target remains the VPS. `main` is production-affecting and deployment
 - Before merge, prefer `pnpm run check`.
 - Before production deploy, use the local deploy script and `pnpm run health:production`.
 
+## Active Focus — Blocked Constraints
+
+Three hard limits surfaced by the 2026-09-10 sprint. Each one gates content that is otherwise ready to write, so they outrank writing more content.
+
+### A. The 24h journey sim is ~21.4h of *walking*
+
+`tests/playerJourney.spec.ts` / `tests/economyProgressionBudget.spec.ts` model a player's first 24 hours, and the last quest (`zero_hour_breach`) now finishes at 23.96h on the slowest spec — about **two minutes of margin**. Any new quest that adds a cross-region leg pushes it past the horizon and turns those budget gates red.
+
+That number is the finding, not the constraint: 21.4 of 24 hours spent in transit says the travel model may be walking naive paths rather than what a real player does (run-speed buffs, escape/teleport abilities, sensible route ordering). Until the model is made *truer* — not fudged — the L21 and L27 quest holes (~1.3k and ~2.6k XP) cannot be filled, and neither can anything else in the 30s band.
+
+### B. A- and S-grade gear has nowhere to drop
+
+`GRADE_SPECS` puts A at Lv 52 and S at Lv 68. The world's highest zone band is Lv 28–40. An A-grade set today would be unobtainable, which §5 below calls worse than no set — so the top two tiers of the gear ladder are blocked on **shipping a Lv 40+ zone band**, not on writing more sets.
+
+### C. Two actions still have no honest client-side signal
+
+Looting, quest accept/advance, skill learned, item equipped and boss engage were all silent; they now have cues (`hud/EventCueBridge.tsx`). **Crafting and vendor sells still don't** — not for want of a sample, but because neither produces anything the client can tell apart from a plain `InventoryUpdate` or a gold tick. Wiring them needs a server/protocol signal first; shipping a cue id with nothing behind it would be worse.
+
+Related loose end: `GainBurst`'s existing `pickup` cue fires on a gold delta alongside the new `loot` cue, so looting coins reads as cloth-then-coins. Someone should decide whether the gold path defers to `loot`.
+
 ## Active Focus — Content Validation Pass
 
 Surfaced by playtesting on account `a/a`. Each item is a fix the player can feel.
@@ -49,7 +69,9 @@ A bidirectional integrity test (`tests/itemSetBackref.spec.ts`) plus `tests/equi
 
 Surfaced from playtesting (Wildlands Hunter / Elementborn) — the wiki now exposes each set's tier via `GRADE_SPECS`, and players noticed that today's sets mix grades inside a single set (e.g. C-grade chest + D-grade weapon). The design target is:
 
-- [ ] **Every set is single-grade.** Each `EQUIPMENT_SETS` entry should declare items all sharing the same `item.grade`. Add a `tests/equipmentSetSameGrade.spec.ts` gate so this is CI-enforced. The wiki Sets tab's "mixed tiers" warning becomes unreachable.
+**Status 2026-09-10:** every set is now single-grade and CI-enforced; sets declare `intendedSpecs` as data instead of being guessed from an armor-type heuristic; all 14 specs have at least one tuned set, with a floor enforced by `tests/specGradeCoverage.spec.ts`; `tests/equipmentSetObtainable.spec.ts` gates what `content:audit` can't see (a piece that drops in a band too low to equip it); and the wiki Specs tab shows each spec's gear path across grades. Remaining gaps: **mage at C and B, rogue at B, warrior at B, paladin at C** — plus A/S, blocked on constraint B above.
+
+- [x] **Every set is single-grade.** Each `EQUIPMENT_SETS` entry should declare items all sharing the same `item.grade`. Add a `tests/equipmentSetSameGrade.spec.ts` gate so this is CI-enforced. The wiki Sets tab's "mixed tiers" warning becomes unreachable.
 - [ ] **Sets per specialization × grade.** Goal: every player specialization has one set at each grade (D / C / B / A / S). That's roughly `(#specs) × 5` sets total. Each set ships with:
   - 3–4 pieces (whatever the spec's primary slots can wear simultaneously — validated by `equipmentSetSlotValidity.spec.ts`)
   - Two bonus tiers tuned to the spec's stat priorities (e.g. crit-focused for Treasure Hunter, mDef-focused for Templar)
