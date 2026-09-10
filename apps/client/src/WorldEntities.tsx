@@ -20,6 +20,7 @@ import {
   SelectedEnemyRing,
 } from './SceneVfx';
 import { NameLabel } from './NameLabel';
+import { enemyThreat, threatNameplateStyle } from './enemyThreat';
 import { StatusEffectsVfx } from './vfx/statusFx';
 import { PlayerFigure } from './PlayerFigure';
 import { GroundBlobShadow } from './GroundShadow';
@@ -208,6 +209,7 @@ function enemyAnim(enemy: EnemyEntity, speedSq: number): CharacterAnim {
 function EnemyMarkerImpl({
   enemy,
   isSelected,
+  playerLevel = 1,
   activeTimeFields = {},
   now = Date.now(),
   onSelect,
@@ -215,6 +217,8 @@ function EnemyMarkerImpl({
 }: {
   enemy: EnemyEntity;
   isSelected: boolean;
+  /** Local player's level — decides the nameplate's threat colour. */
+  playerLevel?: number;
   activeTimeFields?: ActiveTimeFieldMap;
   now?: number;
   onSelect: (targetId: string | null) => void;
@@ -286,23 +290,51 @@ function EnemyMarkerImpl({
       {enemy.isAlive && enemy.isMiniBoss && !isSelected && <BossBeacon color={visual.color} height={visual.height} />}
       {enemy.isAlive && <EnemyHitFlash health={enemy.health} />}
       <EnemyHealthBar enemy={enemy} visible={isSelected || enemy.health < enemy.maxHealth} />
-      {enemy.isAlive && isSelected && (
+      <EnemyPlates enemy={enemy} isSelected={isSelected} playerLevel={playerLevel} bodyHeight={visual.height} />
+    </SmoothedEntityGroup>
+  );
+}
+
+/**
+ * The floating text above a mob: its name + level, con-coloured by how
+ * dangerous it is to the local player, plus the exact HP readout once it's your
+ * target. Split out of EnemyMarkerImpl only to keep that function under the
+ * 100-line budget.
+ */
+function EnemyPlates({
+  enemy,
+  isSelected,
+  playerLevel,
+  bodyHeight,
+}: {
+  enemy: EnemyEntity;
+  isSelected: boolean;
+  playerLevel: number;
+  bodyHeight: number;
+}) {
+  if (!enemy.isAlive) return null;
+  // Con-colour the nameplate so a player can read "can this kill me?" across a
+  // clearing, instead of having to click each mob to find out.
+  const plate = threatNameplateStyle(enemyThreat(playerLevel, enemy.level ?? 0), Boolean(enemy.isMiniBoss));
+  return (
+    <>
+      {isSelected && (
         <NameLabel
           text={formatEnemyHpText(enemy.health, enemy.maxHealth)}
           color="#f8fafc"
-          yOffset={visual.height + 0.95}
+          yOffset={bodyHeight + 0.95}
           height={0.36}
         />
       )}
-      {enemy.isAlive && enemy.name && (
+      {enemy.name && (
         <NameLabel
-          text={enemy.name + (enemy.level ? `  Lv ${enemy.level}` : '')}
-          color={enemy.isMiniBoss ? '#fde68a' : '#fca5a5'}
-          yOffset={visual.height + 0.65}
-          height={enemy.isMiniBoss ? 0.55 : 0.42}
+          text={plate.prefix + enemy.name + (enemy.level ? `  Lv ${enemy.level}` : '')}
+          color={plate.color}
+          yOffset={bodyHeight + 0.65}
+          height={plate.height}
         />
       )}
-    </SmoothedEntityGroup>
+    </>
   );
 }
 
