@@ -1,0 +1,38 @@
+/* One-thumb dismiss for the phone modal stack: sits directly above the ☰
+   rail toggle so "close what's open" is always in the same place. Scoped
+   under .panel-toggles so it wins over the generic .panel-toggle skin
+   regardless of stylesheet order. */
+.panel-toggles .panel-dismiss-toggle {
+  min-height: 44px;
+  gap: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-color: rgba(252, 165, 165, 0.45);
+  color: #fecaca;
+  background: rgba(76, 20, 24, 0.52);
+  animation: panel-dismiss-appear 160ms ease-out;
+}
+
+.panel-toggles .panel-dismiss-toggle:hover {
+  background: rgba(112, 28, 34, 0.62);
+}
+
+@keyframes panel-dismiss-appear {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel-toggles .panel-dismiss-toggle { animation: none; }
+}
+
+/* Phones shrink the rail pills to 56×36 to fit ten of them; the dismiss pill
+   keeps a full 44px thumb target because it is the one control a player
+   reaches for while something is covering the world. */
+@media (max-width: 680px) {
+  .panel-toggles .panel-dismiss-toggle {
+    min-height: 44px;
+    font-size: 12px;
+  }
+}
