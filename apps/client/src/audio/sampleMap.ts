@@ -36,6 +36,13 @@ export const UI_SAMPLES = [`${BASE}/metalClick.ogg`];
 export const SOFT_CLOTH_SAMPLES = [`${BASE}/cloth1.ogg`, `${BASE}/cloth2.ogg`];
 export const LOW_SWELL_SAMPLES = [`${BASE}/lowSwell_000.ogg`, `${BASE}/lowSwell_001.ogg`];
 
+/**
+ * A wet slap — the poison travel clip, also the raw material for bog footsteps,
+ * wading and shore lapping (see audio/surfaces). Slowed right down it stops
+ * reading as "slime" and becomes water moving.
+ */
+export const WET_SAMPLES = [`${BASE}/slime_000.ogg`, `${BASE}/slime_001.ogg`];
+
 /** The cast "charge" — a sci-fi force-field energy swell, pitched per element + skill (see skillAudio). */
 export const WINDUP_CHARGE_SAMPLES = [`${BASE}/forceField_002.ogg`, `${BASE}/forceField_003.ogg`];
 
@@ -76,7 +83,7 @@ const ELEMENT_TRAVEL: Record<SpellElement | 'physical', string[]> = {
   fire: [`${BASE}/thrusterFire_000.ogg`, `${BASE}/thrusterFire_001.ogg`],
   ice: [`${BASE}/forceField_000.ogg`, `${BASE}/forceField_001.ogg`],
   holy: [`${BASE}/forceField_000.ogg`, `${BASE}/forceField_001.ogg`],
-  poison: [`${BASE}/slime_000.ogg`, `${BASE}/slime_001.ogg`],
+  poison: WET_SAMPLES,
   arcane: [`${BASE}/laserSmall_000.ogg`, `${BASE}/laserSmall_001.ogg`],
   physical: [`${BASE}/knifeSlice.ogg`, `${BASE}/knifeSlice2.ogg`],
 };

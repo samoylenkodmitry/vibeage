@@ -34,12 +34,35 @@ export function spatialPanFor(dx: number, dz: number, cameraYaw: number): number
   return Math.max(-1, Math.min(1, right));
 }
 
-const listener = { px: 0, pz: 0, yaw: 0 };
+const listener = { px: 0, pz: 0, yaw: 0, at: 0 };
+
+/**
+ * The listener update is the only steady stream of "where the player is" that
+ * reaches the audio layer (the bridge polls it at ~12Hz). Footsteps and the
+ * sense-of-place mix ride on it rather than adding timers of their own, so
+ * movement audio costs no extra frame work — and stops dead when the bridge
+ * unmounts.
+ */
+type MoveObserver = (px: number, pz: number, dtMs: number) => void;
+const moveObservers = new Set<MoveObserver>();
+
+export function onListenerMove(observer: MoveObserver): () => void {
+  moveObservers.add(observer);
+  return () => { moveObservers.delete(observer); };
+}
 
 export function setSpatialListener(px: number, pz: number, cameraYaw: number): void {
+  const now = typeof performance === 'undefined' ? Date.now() : performance.now();
+  const dt = listener.at === 0 ? 0 : now - listener.at;
   listener.px = px;
   listener.pz = pz;
   listener.yaw = cameraYaw;
+  listener.at = now;
+  if (dt <= 0) return;
+  for (const observer of moveObservers) {
+    // One bad observer must not silence the rest (or the listener update itself).
+    try { observer(px, pz, dt); } catch { /* ignore observer errors */ }
+  }
 }
 
 /**
