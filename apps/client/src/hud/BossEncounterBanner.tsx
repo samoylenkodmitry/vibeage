@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { playCue } from '../audio/cues';
 import type { EnemyEntity } from '../gameTypes';
 
 type BossEncounterBannerProps = {
@@ -36,6 +37,10 @@ export function BossEncounterBanner({ enemies }: BossEncounterBannerProps) {
       const inCombat = enemy.isAlive && enemy.aiState && enemy.aiState !== 'idle';
       if (inCombat && !aggroedRef.current.has(enemy.id)) {
         aggroedRef.current.add(enemy.id);
+        // The banner is easy to miss mid-fight; the deep swell is what actually
+        // tells you a boss committed to you. Pitched under the telegraph cue so
+        // the two read as different moments.
+        playCue('bossEngage');
         if (timeoutRef.current !== null) window.clearTimeout(timeoutRef.current);
         seqRef.current += 1;
         setBanner({ key: seqRef.current, name: enemy.name, level: enemy.level });

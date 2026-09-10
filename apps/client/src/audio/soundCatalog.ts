@@ -170,6 +170,12 @@ const CUES: ReadonlyArray<{ cue: CueId; title: string; detail: string }> = [
   { cue: 'lowMana', title: 'Low mana', detail: 'Under 20% mana (casters)' },
   { cue: 'bossTelegraph', title: 'Boss telegraph', detail: 'A boss winds up a dangerous attack' },
   { cue: 'chat', title: 'Chat', detail: 'A chat message arrives' },
+  { cue: 'loot', title: 'Loot picked up', detail: 'Loot lands in your bag — pitch-jittered per pickup' },
+  { cue: 'equip', title: 'Item equipped', detail: 'Gear goes on — cloth settling with a soft body under it' },
+  { cue: 'learnSkill', title: 'Skill learned', detail: 'A new skill unlocked — a smaller swell than a level' },
+  { cue: 'questAccept', title: 'Quest accepted', detail: 'You take on a quest' },
+  { cue: 'questStage', title: 'Quest stage advanced', detail: 'A quest objective ticks over — the quietest cue' },
+  { cue: 'bossEngage', title: 'Boss engages', detail: 'A mini-boss enters combat with you' },
   { cue: 'hit', title: 'Hit (cue)', detail: 'Legacy generic-hit cue' },
   { cue: 'kill', title: 'Kill (cue)', detail: 'Legacy kill cue — a soft low thud' },
 ];
