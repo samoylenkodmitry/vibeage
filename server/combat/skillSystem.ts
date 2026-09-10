@@ -15,6 +15,7 @@ import {
 import { debug, error, LOG_CATEGORIES, warn } from '../logger.js';
 import type { CombatWorld } from './worldContract.js';
 import { isCastPhysicsFrozen } from '../physics/areaPhysics.js';
+import { interruptControlledMobCasts } from './mobCastInterrupt.js';
 
 // Set of constants for skill system
 export const CAST_BROADCAST_RATE = 50; // ms, how often to send cast snapshots
@@ -258,6 +259,10 @@ function emitCastTelegraph(outbound: OutboundEventSink, cast: Cast, skill: Skill
     halfAngleDeg: shape.kind === 'cone' ? shape.halfAngleDeg : undefined,
     windUpMs: skill.telegraph.windUpMs,
     impactAt: now + skill.telegraph.windUpMs,
+    // Tells the ring whether control is an option here. An ability
+    // that opted out of interruption has to LOOK different, or the
+    // player learns the wrong lesson from a stun that did nothing.
+    unstoppable: skill.isInterruptable === false,
   });
 }
 
@@ -306,6 +311,10 @@ export function getCastById(activeCasts: ActiveCastStore, castId: string): Cast 
  * Fully implemented server-authoritative state machine
  */
 export function tickCasts(activeCasts: ActiveCastStore, dt: number, outbound: OutboundEventSink, world: CombatWorld, now: number): void {
+  // Control landed on a winding-up mob breaks its cast before this
+  // tick advances it — otherwise the telegraph gets one more frame and
+  // a stunned brute still lands the cleave. See mobCastInterrupt.ts.
+  interruptControlledMobCasts(activeCasts, outbound, world, now);
 
   for (const castId of Object.keys(activeCasts)) {
     const cast = activeCasts[castId];

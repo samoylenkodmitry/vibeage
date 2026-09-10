@@ -1,0 +1,15 @@
+/* Sits alongside the `.boss-telegraph-bar` rules in styles.css — kept in its
+   own file so the shared sheet doesn't grow for a single chip. */
+.boss-telegraph-bar__unstoppable {
+  flex: 0 0 auto;
+  padding: 1px 7px;
+  border: 1px solid rgba(248, 113, 113, 0.65);
+  border-radius: 999px;
+  background: rgba(127, 29, 29, 0.45);
+  color: #fecaca;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}

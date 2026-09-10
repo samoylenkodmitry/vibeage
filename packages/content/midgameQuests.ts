@@ -28,7 +28,11 @@ export const MIDGAME_BEAT_QUESTS: Record<string, QuestDef> = {
       { id: 'mark_darkstalkers', description: 'Mark 7 darkstalkers off Marn\'s ledger.', objective: { kind: 'kill', enemyType: 'darkstalker', count: 7 } },
       { id: 'close_shadow_debt', description: 'Return to Marn and close the debt line.', objective: { kind: 'talk', npcId: 'shade_reeve_marn' } },
     ],
-    reward: { xp: 7200, gold: 2300, items: [{ itemId: 'void_crystal', quantity: 3 }, { itemId: 'dawnfeather_ring', quantity: 1 }] },
+    // 7200 was one of only two hand-ins in the game big enough to cross two
+    // level thresholds at once. Mob and boss XP already runs through
+    // `capSingleLevelAwardXP`; quest hand-ins do not, so the reward itself has
+    // to stay inside one level or the player silently skips a level's unlocks.
+    reward: { xp: 6200, gold: 2300, items: [{ itemId: 'void_crystal', quantity: 3 }, { itemId: 'dawnfeather_ring', quantity: 1 }] },
   },
   hourglass_field_notes: {
     id: 'hourglass_field_notes',

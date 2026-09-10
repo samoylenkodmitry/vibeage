@@ -63,11 +63,22 @@ export const BOSS_SIGNATURE_SKILLS: Record<string, SkillDef> = Object.fromEntrie
     const mech = spec.signatureAbility.mechanic;
     const id = bossSignatureSkillId(spec.id);
     const skill: SkillDef = {
-      id, name: spec.signatureAbility.name, description: spec.signatureAbility.description,
+      id, name: spec.signatureAbility.name,
+      // The wiki and the telegraph tooltip read this string, so the
+      // opt-out has to be stated in words too, not only on the wire.
+      description: spec.signatureAbility.unstoppable
+        ? `${spec.signatureAbility.description} Unstoppable — this wind-up cannot be interrupted.`
+        : spec.signatureAbility.description,
       icon: '/game/skills/skill_fireball.png', cat: 'instant',
       manaCost: 0, castMs: 0, cooldownMs: mech.cooldownMs,
       weaponScaled: mech.kind !== 'summonPack',
       range: Math.max(signatureRange(mech), 6), levelRequired: 1, requiresTarget: true, isBlocking: false,
+      // Uninterruptible is ability data, never an engine exception: a
+      // boss opts out with `signatureAbility.unstoppable` and lands on
+      // the SAME `isInterruptable` flag a player's locked channel uses.
+      // Everything else winds up interruptibly, so control abilities
+      // are real counterplay against a telegraph.
+      ...(spec.signatureAbility.unstoppable ? { isInterruptable: false } : {}),
       ...mechanicAbility(mech),
     };
     return [id, skill];

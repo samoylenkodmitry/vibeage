@@ -10,7 +10,8 @@ import { SKILLS, type SkillId } from '../../packages/content/skills.js';
 import { VENDORS } from '../../packages/content/vendors.js';
 import { capSingleLevelAwardXP, getExperienceToNextLevel, starterSkillsFor } from '../players/playerProgression.js';
 import { createSimulatedEnemy } from './gameSimulator.js';
-import { estimateJourneyTravel } from './journeyTravel.js';
+import { estimateJourneyTravel, recallCooldownEndsAt } from './journeyTravel.js';
+import { GOLD_VALUE_BY_CURRENCY, JOURNEY_ENEMY_BY_LEVEL } from './journeyRouteData.js';
 import type {
   JourneyBeat, JourneyBeatKind, JourneyLevelProgress, JourneyTimeBreakdown, JourneyVendorPurchase, JourneyWindowSummary,
   JourneyXpBreakdown, JourneyXpSource, PlayerJourneyOptions, PlayerJourneySummary,
@@ -21,22 +22,15 @@ const HOUR_MS = 60 * 60 * 1000;
 const DEFAULT_HORIZON_HOURS = 24;
 const DEFAULT_WINDOW_HOURS = 1;
 const DEFAULT_MAX_LEVEL = 40;
-const DEFAULT_TRAVEL_SPEED_MPS = 10;
+// Real world speed, not a guess: `statContributions` sets baseline `runSpeed`
+// to 20 units/sec and `worldMovement` feeds it straight into integration. The
+// sim used to walk at 10 — half what any player actually moves at.
+const DEFAULT_TRAVEL_SPEED_MPS = 20;
 const QUEST_INTERACTION_MS = 10_000;
 const KILL_SEARCH_MS = 26_000;
 const LOOT_PICKUP_MS = 4_000;
 const DEATH_RECOVERY_MS = 90_000;
 const BOSS_DURATION_MULTIPLIER = 4;
-const GOLD_VALUE_BY_CURRENCY: Record<string, number> = { gold_coin: 1, platinum_coin: 100 };
-
-const JOURNEY_ENEMY_BY_LEVEL: Array<{ minLevel: number; enemyType: string }> = [
-  { minLevel: 40, enemyType: 'time_wraith' }, { minLevel: 35, enemyType: 'radiant_seraph' },
-  { minLevel: 30, enemyType: 'rift_surveyor' }, { minLevel: 28, enemyType: 'frost_wolf' },
-  { minLevel: 26, enemyType: 'brightglass_mote' }, { minLevel: 24, enemyType: 'road_thornback' },
-  { minLevel: 22, enemyType: 'ash_dust_runner' }, { minLevel: 16, enemyType: 'fire_elemental' },
-  { minLevel: 12, enemyType: 'shadowbeast' }, { minLevel: 9, enemyType: 'skeleton' },
-  { minLevel: 7, enemyType: 'troll' }, { minLevel: 5, enemyType: 'wolf' }, { minLevel: 1, enemyType: 'goblin' },
-];
 
 type VendorUpgradeCandidate = {
   vendorId: string;
@@ -54,6 +48,7 @@ type JourneyState = {
   windowMs: number;
   maxLevel: number;
   travelSpeedMps: number;
+  recallReadyAtMs: number;
   elapsedMs: number;
   level: number;
   experience: number;
@@ -82,7 +77,10 @@ export function runPlayerJourney(options: PlayerJourneyOptions): PlayerJourneySu
   const state = createJourneyState(options);
   announceAvailableQuests(state);
 
-  while (hasTimeRemaining(state) && shouldContinueJourney(state)) {
+  // A capped player with an empty quest board keeps running the mastery route
+  // (hence the `mastery_progress` beats) rather than logging off. The loop used
+  // to stop there, so every hour past the last hand-in read as an empty window.
+  while (hasTimeRemaining(state)) {
     const quest = nextAvailableQuest(state);
     if (quest) {
       if (!runQuest(state, quest)) break;
@@ -127,6 +125,7 @@ function createJourneyState(options: PlayerJourneyOptions): JourneyState {
     windowMs: (options.windowHours ?? DEFAULT_WINDOW_HOURS) * HOUR_MS,
     maxLevel: options.maxLevel ?? DEFAULT_MAX_LEVEL,
     travelSpeedMps: options.travelSpeedMps ?? DEFAULT_TRAVEL_SPEED_MPS,
+    recallReadyAtMs: 0,
     elapsedMs: 0,
     level: 1,
     experience: 0,
@@ -458,7 +457,11 @@ function availableQuests(state: JourneyState): QuestDef[] {
 }
 
 function travelTo(state: JourneyState, target: QuestVec3): boolean {
-  const travel = estimateJourneyTravel(state.position, target, state.travelSpeedMps);
+  const { travelSpeedMps: speedMps, level, elapsedMs: nowMs, recallReadyAtMs } = state;
+  const travel = estimateJourneyTravel(state.position, target, { speedMps, level, nowMs, recallReadyAtMs });
+  // Burn the Escape cooldown only when the route spends the recall, so a chain
+  // of local hops can't quietly teleport every leg.
+  if (travel.usedRecall) state.recallReadyAtMs = recallCooldownEndsAt(nowMs);
   const completed = advanceTime(state, travel.durationMs, 'travelMs', travel.label);
   if (completed) state.position = target;
   return completed;
@@ -515,11 +518,6 @@ function addProgressBeatsForSegment(
       }
     }
   }
-}
-
-function shouldContinueJourney(state: JourneyState): boolean {
-  if (state.level < state.maxLevel) return true;
-  return nextAvailableQuest(state) !== null;
 }
 
 function hasTimeRemaining(state: JourneyState): boolean {

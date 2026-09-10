@@ -25,7 +25,15 @@ describe('player journey content-gap diagnostics', () => {
     expect(diagnostics.length).toBeGreaterThan(0);
     expect(diagnostics.some((row) => row.kind === 'empty_windows')).toBe(false);
     expect(diagnostics.some((row) => row.kind === 'quest_gap')).toBe(true);
-    expect(diagnostics.some((row) => row.kind === 'gear_gap')).toBe(false);
+    // Once travel stopped being modelled at half a player's real run speed the
+    // arcanist route caps around hour 15 and spends the rest of the day on the
+    // mastery run, best-in-slot. A gear gap in that tail is the honest reading
+    // — there is nothing left to upgrade — so it may appear, but only inside
+    // the post-cap L40 band and never as a high-severity finding.
+    for (const row of diagnostics.filter((entry) => entry.kind === 'gear_gap')) {
+      expect(row.levelBand).toBe('L40');
+      expect(row.endHour).toBe(summary.horizonHours);
+    }
     expect(diagnostics.every((row) => row.severity !== 'high')).toBe(true);
     expect(diagnostics.every((row) => row.emptyWindows === 0)).toBe(true);
     expect(diagnostics.every((row) => row.pathLabel === 'arcanist')).toBe(true);
