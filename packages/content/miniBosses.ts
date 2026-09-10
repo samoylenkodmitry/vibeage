@@ -98,6 +98,17 @@ export interface MiniBossSpec {
     name: string;
     description: string;
     mechanic: MiniBossMechanic;
+    /**
+     * The wind-up cannot be broken by a stun / silence / knockback
+     * (maps to `SkillDef.isInterruptable: false` — the same opt-out a
+     * player's locked channel uses). Data, not an engine exception, so
+     * a designer decides per boss which fights are "control answers
+     * this" and which are "move or die"; the telegraph ring is drawn
+     * differently for these so the player is told, not surprised.
+     * Reserved for the deep-end bosses — an early boss you can stun is
+     * how a new player learns control works at all.
+     */
+    unstoppable?: boolean;
   };
   trophyItemId: string;
   lootTableId: string;
@@ -378,6 +389,9 @@ export const MINI_BOSSES: Record<string, MiniBossSpec> = {
       name: 'Solar Verdict',
       description: 'Marks the target with a slow descending sunbeam. Move out of the marked tile before the beam lands or eat a heavy hit.',
       mechanic: circle({ windUpMs: 2800, cooldownMs: 12_000, radiusUnits: 5, damageMul: 3.0 }),
+      // A 2.8s wind-up this generous is a movement puzzle by design;
+      // letting a stun delete it would turn the fight's whole idea off.
+      unstoppable: true,
     },
     trophyItemId: 'auriel_dawnfeather',
     lootTableId: 'boss_loot_auriel',
@@ -392,6 +406,9 @@ export const MINI_BOSSES: Record<string, MiniBossSpec> = {
       name: 'Hourglass Reversal',
       description: 'Rewinds his own HP to where it was a few seconds earlier. The window to burst him down is between the rewind cooldowns.',
       mechanic: circle({ windUpMs: 2600, cooldownMs: 15_000, radiusUnits: 11, damageMul: 2.5 }),
+      // The Warden of Hours does not lose time to a stun; the fight is
+      // about the burst window, not about denying the rewind.
+      unstoppable: true,
     },
     trophyItemId: 'aethariel_hourglass_sand',
     lootTableId: 'boss_loot_aethariel',

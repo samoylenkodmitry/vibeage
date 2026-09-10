@@ -166,6 +166,31 @@ export const bossTelegraphSchema = z.object({
   halfAngleDeg: z.number().optional(),
   windUpMs: z.number(),
   impactAt: z.number(),
+  // The ability opted out of interruption (`SkillDef.isInterruptable:
+  // false`). Absent / false = a stun or knockback will break this
+  // wind-up, which is exactly what the ring should tell the player.
+  unstoppable: z.boolean().optional(),
+}).strict();
+
+/**
+ * A caster's wind-up was broken before it resolved. Emitted when a
+ * control ability (stun / freeze / root / silence / knockback) lands
+ * on a mob mid-cast: the client must retire the telegraph ring and
+ * the cast bar for `castId` immediately — otherwise an interrupted
+ * cleave still reads as an incoming hit — and print the interrupt in
+ * the combat log. `interrupterId` is whoever landed the control
+ * effect, so the log can name them.
+ */
+export const castInterruptedSchema = z.object({
+  type: z.literal('CastInterrupted'),
+  castId: z.string(),
+  casterId: z.string(),
+  casterName: z.string(),
+  skillId: z.string(),
+  abilityName: z.string(),
+  /** 'stun' | 'silence' | 'knockback' — why the cast broke. */
+  reason: z.string(),
+  interrupterId: z.string().optional(),
 }).strict();
 
 export const inventoryUpdateMsgSchema = z.object({
@@ -300,6 +325,7 @@ export const nonEffectServerMessageSchema = z.discriminatedUnion('type', [
   combatLogMsgSchema,
   enemyAttackSchema,
   bossTelegraphSchema,
+  castInterruptedSchema,
   inventoryUpdateMsgSchema,
   lootAcquiredMsgSchema,
   starterProgressUpdateSchema,
@@ -425,6 +451,19 @@ export type BossTelegraph = {
   halfAngleDeg?: number;
   windUpMs: number;
   impactAt: number;
+  /** True when the ability cannot be interrupted (see schema). */
+  unstoppable?: boolean;
+};
+
+export type CastInterrupted = {
+  type: 'CastInterrupted';
+  castId: string;
+  casterId: string;
+  casterName: string;
+  skillId: string;
+  abilityName: string;
+  reason: string;
+  interrupterId?: string;
 };
 
 export type InventoryUpdateMsg = {
@@ -522,6 +561,7 @@ export type ServerMessage =
   | CombatLogMsg
   | EnemyAttack
   | BossTelegraph
+  | CastInterrupted
   | InventoryUpdateMsg
   | LootAcquiredMsg
   | StarterProgressUpdate

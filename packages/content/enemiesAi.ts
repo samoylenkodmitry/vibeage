@@ -239,3 +239,37 @@ export const ENEMY_AI_TUNING = {
   /** How long a regrouping mob refuses to re-engage. */
   regroupDisengageMs: 6_000,
 } as const;
+
+/**
+ * Interrupting a mob's wind-up (docs/ABILITY_SYSTEM.md). A telegraph
+ * used to mean exactly one thing — step out of the shape — so every
+ * control ability a player owns was dead weight against a caster. A
+ * stun / freeze / root / silence landing on a mob mid-cast now breaks
+ * the cast under the SAME rule a player's cast obeys
+ * (`SkillDef.isInterruptable`), and knockback counts because it shoves
+ * the mob off the mark its telegraph was locked to.
+ *
+ * The consequence numbers live here rather than in the interrupt code
+ * because they are the balance dial for how strong control is, and the
+ * wiki reads the same record.
+ */
+export const MOB_CAST_INTERRUPT = {
+  /**
+   * Fraction of the ability's own cooldown the mob eats when its cast
+   * is cut short. Chosen at 0.6 for the middle answer: at 0 an
+   * interrupt is free for the mob (it just re-casts next tick and the
+   * player wasted a stun); at 1 a single stun could lock a slow, heavy
+   * ability out for its whole cooldown and a brute would spend the
+   * fight doing nothing. 0.6 makes an interrupt worth a global
+   * cooldown of the player's own — the ability is delayed, denied
+   * once, and comes back.
+   */
+  cooldownFraction: 0.6,
+  /**
+   * Extra beat before the mob may swing again at all, on top of the
+   * per-skill cooldown. Reads as a stagger: the wind-up visibly fails
+   * and the mob is briefly off-balance rather than flowing straight
+   * into a basic attack on the same tick.
+   */
+  staggerMs: 700,
+} as const;

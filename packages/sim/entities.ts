@@ -156,6 +156,14 @@ export interface Enemy {
   /** Casts landed since the last reposition; drives the strafe cadence. */
   castsSinceReposition?: number;
   /**
+   * When this mob was last shoved by a knockback effect. A cast whose
+   * wind-up started before this instant was physically broken — the
+   * mob was pushed off the mark it locked its telegraph on — so the
+   * cast-interrupt sweep can treat displacement as an interrupt
+   * without guessing at self-locomotion.
+   */
+  lastDisplacedTs?: number;
+  /**
    * Set once a `support` mob has broken off at low HP and called for
    * help, so a fight has one retreat beat rather than an endless
    * fall-back loop. Reset on return-to-spawn / respawn.

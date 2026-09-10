@@ -572,6 +572,7 @@ function applyKnockback(target: Enemy | PlayerState, caster: PlayerState | null,
     };
   }
   target.dirtySnap = true;
+  if (isEnemy(target)) target.lastDisplacedTs = now; // knockback leaves no status effect; mobCastInterrupt reads this stamp
 }
 
 /**
