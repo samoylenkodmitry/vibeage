@@ -1,4 +1,5 @@
 import { getAudioContext, getMasterGain, isMuted } from '../sfx';
+import { claimVoice } from './mix';
 import { playSpatial } from './spatial';
 
 /**
@@ -76,7 +77,10 @@ function source(ctx: AudioContext, buf: AudioBuffer, dest: AudioNode, gain: numb
 export function playSampleAt(urls: readonly string[], worldX: number, worldZ: number, gain = 1): void {
   const buf = pickReady(urls);
   if (!buf) return;
-  playSpatial((ctx, dest) => source(ctx, buf, dest, gain), worldX, worldZ);
+  // Duck against whatever else just fired so a flurry doesn't machine-gun.
+  const duck = claimVoice();
+  if (duck <= 0) return;
+  playSpatial((ctx, dest) => source(ctx, buf, dest, gain * duck), worldX, worldZ);
 }
 
 /**
@@ -92,8 +96,10 @@ export function playSampleLayersAt(layers: readonly SampleLayer[], worldX: numbe
     .map((l) => ({ buf: pickReady(l.urls), gain: l.gain ?? 1, rate: l.rate ?? 1 }))
     .filter((l): l is { buf: AudioBuffer; gain: number; rate: number } => l.buf !== null);
   if (ready.length === 0) return;
+  const duck = claimVoice();
+  if (duck <= 0) return;
   playSpatial((ctx, dest) => {
-    for (const l of ready) source(ctx, l.buf, dest, l.gain, l.rate);
+    for (const l of ready) source(ctx, l.buf, dest, l.gain * duck, l.rate);
   }, worldX, worldZ);
 }
 

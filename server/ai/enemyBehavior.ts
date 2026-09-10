@@ -82,13 +82,31 @@ export function moveEnemyToward(
   _deltaTime: number,
   now: number,
 ): void {
+  moveEnemyTowardAt(enemy, targetPosition, now, 1);
+}
+
+/**
+ * Same movement intent with an AI-policy speed multiplier — a brute's
+ * charge burst, a skirmisher's flank dart, a caster giving ground. The
+ * multiplier is transient (per move call), never written onto
+ * `movementSpeed`, so nothing has to remember to undo it.
+ */
+export function moveEnemyTowardAt(
+  enemy: Enemy,
+  targetPosition: VecXZ,
+  now: number,
+  speedMul: number,
+): void {
   const direction = directionXZ(enemy.position, targetPosition);
-  const speed = getEnemyMovementSpeed(enemy, now);
+  const speed = getEnemyMovementSpeed(enemy, now) * speedMul;
 
   enemy.velocity = {
     x: direction.x * speed,
     z: direction.z * speed,
   };
+  // Faces the movement direction; callers that want the mob to keep
+  // eyes on its target while sliding (strafe/backpedal) re-face it
+  // afterwards with faceEnemyToward.
   enemy.rotation.y = rotationYForDirection(direction);
   markEnemyPositionDirty(enemy);
 }

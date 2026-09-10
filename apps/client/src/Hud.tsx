@@ -17,7 +17,8 @@ import { SpecializationHint } from './hud/SpecializationHint';
 import { FrontierGuideHint } from './hud/FrontierGuideHint';
 import { TargetingHint } from './hud/TargetingHint';
 import { ZoneBanner } from './hud/ZoneBanner';
-import { usePersistedToggle } from './hud/usePersistedToggle';
+import { PanelToggleStrip } from './hud/PanelToggleStrip';
+import { usePanelState } from './hud/usePanelState';
 import { WelcomeOverlay } from './hud/WelcomeOverlay';
 import { VendorPanel } from './hud/VendorPanel';
 import { VENDORS } from '../../../packages/content/vendors';
@@ -25,6 +26,7 @@ import { SkillBar, type BuiltinBarAction } from './hud/SkillBar';
 import { useActionBar, findBagSlotForItem, type ActionRef } from './hud/useActionBar';
 import { ActionBarDragProvider } from './hud/actionBarDrag';
 import { subscribeWikiOpen } from './hud/wikiNavBus';
+import { barActionRefusal } from './hud/actionRefusal';
 import { TargetPanel, VitalsStrip, resolveSelectedTarget } from './hud/PlatePanels';
 import { getDistance, getMeterProgress } from './hud/hudPrimitives';
 import {
@@ -91,15 +93,18 @@ function buildBuiltinBarActions(
   onPickupNearest?: () => void,
 ): Record<string, BuiltinBarAction> {
   const noop = () => undefined;
+  const tap = { isAlive: alive, hasSelectedTarget, hasNavigationMarker: hasNavMarker, lootCount };
   return {
     move: {
       label: GAME_ACTIONS.move.label, hotkey: GAME_ACTIONS.move.hotkey, icon: GAME_ACTIONS.move.icon,
       disabled: !alive || (!hasSelectedTarget && !hasNavMarker),
+      disabledReason: barActionRefusal('move', tap),
       onInvoke: onMove ?? noop,
     },
     pickup: {
       label: GAME_ACTIONS.pickup.label, hotkey: GAME_ACTIONS.pickup.hotkey, icon: GAME_ACTIONS.pickup.icon,
       disabled: !alive || lootCount === 0,
+      disabledReason: barActionRefusal('pickup', tap),
       onInvoke: onPickupNearest ?? noop,
     },
   };
@@ -129,9 +134,8 @@ export function GameHud(props: GameHudProps) {
 
   // Wiki nav bus: chips outside the Wiki (stat tooltips, SkillBar) call
   // openWikiAt — force the panel open so the navigation lands visibly.
-  useEffect(() => {
-    return subscribeWikiOpen(() => panels.openWiki());
-  }, [panels]);
+  const openWikiPanel = panels.openWiki;
+  useEffect(() => subscribeWikiOpen(openWikiPanel), [openWikiPanel]);
 
   return (
     <ActionBarDragProvider locked={locked} setSlot={setSlot} swapSlots={swapSlots} clearSlot={clearSlot}>
@@ -340,144 +344,6 @@ function HudWorldStatsStrip({
   );
 }
 
-
-function PanelToggleStrip({
-  panels,
-  unspentSkillPoints,
-  isGm,
-}: {
-  panels: PanelState;
-  unspentSkillPoints: number;
-  isGm: boolean;
-}) {
-  const spBadge = unspentSkillPoints > 0 ? unspentSkillPoints : null;
-  // Collapsible rail: one ☰ button shows/hides the stack of panel toggles.
-  // Collapsed by default on phones — the always-on 9-button column otherwise eats
-  // screen space and overlaps the action bar's right edge. Persisted per browser.
-  // Lazy useState so the matchMedia probe runs once, not every render.
-  const [railDefaultOpen] = useState(defaultRailOpen);
-  const [railOpen, , toggleRail] = usePersistedToggle('rail-open', railDefaultOpen);
-  return (
-    <aside className={`panel-toggles${railOpen ? ' panel-toggles--open' : ''}`} aria-label="Panel toggles">
-      <button
-        type="button"
-        className={`panel-toggle panel-rail-toggle${spBadge && !railOpen ? ' panel-toggle--badged' : ''}`}
-        aria-expanded={railOpen}
-        aria-label={railOpen ? 'Collapse menu' : 'Open menu'}
-        onClick={toggleRail}
-      >
-        {railOpen ? '✕' : '☰'}
-        {spBadge && !railOpen && (
-          <span className="panel-toggle__badge" aria-label={`${spBadge} unspent`}>{spBadge}</span>
-        )}
-      </button>
-      {railOpen && (
-        <>
-          <PanelToggleButton open={panels.statsOpen} label="Stats" onClick={panels.toggleStats} />
-          <PanelToggleButton open={panels.treeOpen} label="Skills" onClick={panels.toggleTree} badge={spBadge} />
-          <PanelToggleButton open={panels.actionsOpen} label="Actions" onClick={panels.toggleActions} />
-          <PanelToggleButton open={panels.questOpen} label="Quest" onClick={panels.toggleQuest} />
-          <PanelToggleButton open={panels.bagOpen} label="Bag" onClick={panels.toggleBag} />
-          <PanelToggleButton open={panels.gearOpen} label="Gear" onClick={panels.toggleGear} />
-          <PanelToggleButton open={panels.mapOpen} label="Map" onClick={panels.toggleMap} />
-          <PanelToggleButton open={panels.wikiOpen} label="Wiki" onClick={panels.toggleWiki} />
-          <PanelToggleButton open={panels.videoOpen} label="Video" onClick={panels.toggleVideo} />
-          {isGm && <PanelToggleButton open={panels.gmOpen} label="GM" onClick={panels.toggleGm} />}
-        </>
-      )}
-    </aside>
-  );
-}
-
-/** Rail starts collapsed on phones (cramped) and expanded on desktop. */
-function defaultRailOpen(): boolean {
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return true;
-  try { return !window.matchMedia('(max-width: 680px)').matches; } catch { return true; }
-}
-
-type PanelState = ReturnType<typeof usePanelState>;
-
-function usePanelState() {
-  // §52 polish — panel open/closed state persists across reloads via
-  // `usePersistedToggle` (the 3rd-arg default only applies to first-ever joins;
-  // returning players see the set they left open). Stats + Actions default OPEN
-  // on desktop but CLOSED on phones, where two always-open top panels otherwise
-  // bury the game view; `defaultRailOpen` (matchMedia) is computed once.
-  const [desktopDefault] = useState(defaultRailOpen);
-  const [statsOpen, , toggleStats] = usePersistedToggle('stats', desktopDefault);
-  const [questOpen, setQuestOpen, toggleQuest] = usePersistedToggle('quest', false);
-  const [bagOpen, , toggleBag] = usePersistedToggle('bag', false);
-  const [gearOpen, , toggleGear] = usePersistedToggle('gear', false);
-  const [mapOpen, , toggleMap] = usePersistedToggle('map', false);
-  const [treeOpen, setTreeOpen, toggleTree] = usePersistedToggle('tree', false);
-  // Actions is the home of the Attack/Move/Pickup/Escape buttons — open on
-  // desktop so players see them, closed on phones (tap-to-move / tap-to-attack
-  // works, and it's a tap on the ☰ rail away).
-  const [actionsOpen, , toggleActions] = usePersistedToggle('actions', desktopDefault);
-  const [wikiOpen, setWikiOpen, toggleWiki] = usePersistedToggle('wiki', false);
-  const [videoOpen, , toggleVideo] = usePersistedToggle('video', false);
-  const [gmOpen, , toggleGm] = usePersistedToggle('gm', false);
-  // PR AA — the craft panel opens when the player taps a recipe in
-  // their bag. Holds the slot index so we can find the recipe again
-  // (item content + recipe spec come from ITEMS).
-  const [craftRecipeSlot, setCraftRecipeSlot] = useState<number | null>(null);
-  return {
-    statsOpen,
-    questOpen,
-    bagOpen,
-    gearOpen,
-    mapOpen,
-    treeOpen,
-    actionsOpen,
-    wikiOpen,
-    videoOpen,
-    gmOpen,
-    craftRecipeSlot,
-    toggleStats,
-    toggleQuest,
-    openQuest: () => setQuestOpen(true),
-    toggleBag,
-    toggleGear,
-    toggleMap,
-    toggleTree,
-    openTree: () => setTreeOpen(true),
-    toggleActions,
-    toggleWiki,
-    openWiki: () => setWikiOpen(true),
-    toggleVideo,
-    toggleGm,
-    openCraft: (slotIndex: number) => setCraftRecipeSlot(slotIndex),
-    closeCraft: () => setCraftRecipeSlot(null),
-  };
-}
-
-function PanelToggleButton({
-  open,
-  label,
-  onClick,
-  badge,
-}: {
-  open: boolean;
-  label: string;
-  onClick: () => void;
-  /** Optional small chip next to the label — e.g. unspent skill point count. */
-  badge?: number | null;
-}) {
-  const hasBadge = badge !== undefined && badge !== null && badge > 0;
-  return (
-    <button
-      type="button"
-      className={`panel-toggle${open ? ' panel-toggle--open' : ''}${hasBadge ? ' panel-toggle--badged' : ''}`}
-      aria-label={open ? `Hide ${label}` : `Show ${label}`}
-      onClick={onClick}
-    >
-      {label}
-      {hasBadge && (
-        <span className="panel-toggle__badge" aria-label={`${badge} unspent`}>{badge}</span>
-      )}
-    </button>
-  );
-}
 
 function LocationPanel({
   state,

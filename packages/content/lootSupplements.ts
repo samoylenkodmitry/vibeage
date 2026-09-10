@@ -1,4 +1,5 @@
 import type { LootDrop } from './lootTables.js';
+import { SPEC_GEAR_DROPS } from './specGear.js';
 
 /**
  * PR HH — extra drops appended to existing mob/boss loot tables.
@@ -12,6 +13,8 @@ import type { LootDrop } from './lootTables.js';
  * wiki "Dropped by" cross-link.
  */
 export const SUPPLEMENTAL_DROPS: Record<string, readonly LootDrop[]> = {
+  // §5 — each specialization set drops complete off one named boss.
+  ...SPEC_GEAR_DROPS,
   // Materials by biome affinity — fills the obtainability gap for
   // every "essence / shard / petal / fragment" the wiki lists.
   ice_giant_loot: [

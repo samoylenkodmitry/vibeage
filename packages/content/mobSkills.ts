@@ -81,6 +81,38 @@ export const MOB_SKILLS: Record<string, SkillDef> = {
     range: 14, levelRequired: 1, requiresTarget: true,
     effects: [{ type: 'damage', value: 1 }, { type: 'slow', value: 45, durationMs: 4500 }, { type: 'marked', value: 1, durationMs: 4500 }],
   },
+  mobCleave: {
+    id: 'mobCleave', name: 'Cleave',
+    description: 'A telegraphed overhead sweep — the ground lights up ahead of the brute before it lands, so step out of the arc.',
+    icon: '/game/skills/skill_melee.svg', cat: 'instant', kind: 'physical',
+    manaCost: 0, castMs: 0, cooldownMs: 7000, weaponScaled: true, damageMult: 1.6, isBlocking: false,
+    range: 6, levelRequired: 1, requiresTarget: true,
+    shape: { kind: 'cone', length: 6, halfAngleDeg: 50 },
+    affects: 'enemies',
+    // The wind-up IS the counterplay: long enough to read and walk out
+    // of, short enough that standing still is still the player's fault.
+    telegraph: { windUpMs: 900 },
+    effects: [{ type: 'damage', value: 1 }],
+  },
+  mobFlankStrike: {
+    id: 'mobFlankStrike', name: 'Flank Strike',
+    description: 'The skirmisher slips behind its mark and opens up on the exposed side.',
+    icon: '/game/skills/skill_stealth.svg', cat: 'instant', kind: 'physical',
+    manaCost: 0, castMs: 0, cooldownMs: 9000, weaponScaled: true, damageMult: 1.25, isBlocking: false,
+    range: 18, levelRequired: 1, requiresTarget: true,
+    blink: { offset: 1.6 },
+    effects: [{ type: 'damage', value: 1 }],
+  },
+  mobMendPack: {
+    id: 'mobMendPack', name: 'Mend Pack',
+    description: 'A pulse of restorative light that knits every ally around the caster back together. Kill the mender first.',
+    icon: '/game/skills/skill_icebolt.png', cat: 'instant', kind: 'magical',
+    manaCost: 0, castMs: 0, cooldownMs: 10000, isBlocking: false,
+    range: 20, levelRequired: 1, requiresTarget: true,
+    shape: { kind: 'circle', radius: 12, anchor: 'caster' },
+    affects: 'allies',
+    effects: [{ type: 'heal', value: 60 }],
+  },
   mobBreath: {
     id: 'mobBreath', name: 'Fire Breath',
     description: 'A telegraphed cone of fire — sweeps everyone in front of the caster after a wind-up.',

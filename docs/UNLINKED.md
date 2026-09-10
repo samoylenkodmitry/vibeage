@@ -34,6 +34,9 @@ Declared in `SKILLS` but not in any class skill tree, spec/proficiency skill lis
 - [ ] `boss_skadrun_sig` — Blizzard Crown
 - [ ] `boss_vereth_bone_lord_sig` — Marrow Tithe
 - [ ] `boss_vorthax_ember_wyrm_sig` — Cinder Breath
+- [ ] `mobCleave` — Cleave
+- [ ] `mobFlankStrike` — Flank Strike
+- [ ] `mobMendPack` — Mend Pack
 
 ## Mini-bosses with no quest target
 

@@ -1,6 +1,6 @@
 import type { SkillId } from './skills.js';
 
-type EnemyFamily =
+export type EnemyFamily =
   | 'beast'
   | 'humanoid'
   | 'undead'
