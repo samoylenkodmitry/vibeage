@@ -2,6 +2,7 @@ import { UNIVERSAL_SKILLS, type SkillId } from './skills.js';
 import { CLASS_SKILL_TREES, type CharacterClass } from './classes.js';
 import { SPECIALIZATIONS } from './specializations.js';
 import { ENEMY_TEMPLATES } from './enemies.js';
+import { enemySkillsWithArchetype } from './enemiesAi.js';
 import { MINI_BOSSES } from './miniBosses.js';
 import { bossSignatureSkillId } from './bossSkills.js';
 
@@ -43,7 +44,9 @@ function specUsers(skillId: SkillId): SkillUser[] {
 function mobUsers(skillId: SkillId): SkillUser[] {
   const out: SkillUser[] = [];
   for (const [type, tmpl] of Object.entries(ENEMY_TEMPLATES)) {
-    if (tmpl.skills.includes(skillId)) out.push({ kind: 'mob', id: type, name: tmpl.displayName });
+    // Archetype grants are real abilities the mob casts at runtime
+    // (see enemiesAi.ts), so the wiki's "used by" must count them too.
+    if (enemySkillsWithArchetype(tmpl).includes(skillId)) out.push({ kind: 'mob', id: type, name: tmpl.displayName });
   }
   return out;
 }

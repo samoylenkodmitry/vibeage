@@ -36,6 +36,8 @@ export type EnemyAiTickContext = {
 export function updateEnemyAI(enemy: Enemy, deltaTime: number, ctx: EnemyAiTickContext): void {
   const result = advanceEnemyState(enemy, {
     players: ctx.state.players,
+    // Pack hunters read their packmates' state to decide when to commit.
+    enemies: ctx.state.enemies,
     spatialGrid: ctx.spatial,
     deltaTime,
     now: ctx.now,

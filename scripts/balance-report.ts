@@ -162,3 +162,29 @@ for (const boss of Object.values(MINI_BOSSES)) {
   const ttd = d.ttdMs === null ? '∞' : `${(d.ttdMs / 1000).toFixed(1)}s`;
   console.log(`| ${boss.name} | ${BOSS_LEVEL} | ${sig} | ${ttk} | ${ttd} |`);
 }
+
+console.log('');
+console.log('## Encounter archetypes — incoming pressure by AI policy');
+console.log('');
+console.log('One representative mob per AI archetype (packages/content/enemiesAi.ts) attacking a');
+console.log('knight who only regenerates. TTD is how long the knight lives; it is the honest read on');
+console.log('whether an archetype actually applies pressure, since a mob that repositions, kites or');
+console.log('winds up a telegraph spends time not swinging.');
+console.log('');
+console.log('| Archetype | Mob | Lv | Knight TTD | dodges |');
+console.log('|-----------|-----|----|------------|--------|');
+const ARCHETYPE_SAMPLES: Array<[string, string]> = [
+  ['brawler', 'goblin'],
+  ['caster', 'fire_elemental'],
+  ['skirmisher', 'spider'],
+  ['brute', 'troll'],
+  ['packHunter', 'wolf'],
+  ['support', 'necromancer'],
+];
+for (const [archetype, mobType] of ARCHETYPE_SAMPLES) {
+  for (const level of [10, 20]) {
+    const d = timeToDie(makeSimPlayer('knight', level), makeSimEnemy(mobType, level));
+    const ttd = d.ttdMs === null ? '\u221e' : `${(d.ttdMs / 1000).toFixed(1)}s`;
+    console.log(`| ${archetype} | ${mobType} | ${level} | ${ttd} | ${d.dodges} |`);
+  }
+}

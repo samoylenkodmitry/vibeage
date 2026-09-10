@@ -2,7 +2,23 @@ import type { Enemy, PlayerState } from '../../packages/sim/entities.js';
 import type { SkillId } from '../../packages/content/skills.js';
 import { distanceXZ } from '../../packages/sim/geometry.js';
 import { hash, rng as makeRng } from '../../packages/sim/combatMath.js';
-import { isEntitySilenced, isEntityStunned } from '../combat/statusQueries.js';
+import { isEntityStunned } from '../combat/statusQueries.js';
+import { ENEMY_AI_TUNING } from '../../packages/content/enemiesAi.js';
+import {
+  approachSpeedMul,
+  backpedalPoint,
+  hasReadyRangedOption,
+  hasWoundedAlly,
+  holdRangeFor,
+  policyFor,
+  scanPack,
+  selectMobSkillAtRange,
+  shouldHoldForPack,
+  shouldRegroup,
+  strafePoint,
+  strafeSign,
+  withinLeash,
+} from './enemyPolicy.js';
 import type { SpatialHashGrid } from '../spatial/SpatialHashGrid.js';
 import {
   faceEnemyToward,
@@ -11,6 +27,7 @@ import {
   makeEnemyUpdate,
   markEnemyPositionDirty,
   moveEnemyToward,
+  moveEnemyTowardAt,
   snapEnemyToSpawn,
   stopEnemy,
 } from './enemyBehavior.js';
@@ -38,6 +55,12 @@ export type EnemyAIResult = {
 
 export type EnemyAIContext = {
   players: Record<string, PlayerState>;
+  /**
+   * Live mob table, so a pack hunter can see whether its packmates are
+   * already on the target before it commits. Optional: callers that
+   * only drive a lone mob (unit tests) simply get no rally behaviour.
+   */
+  enemies?: Record<string, Enemy>;
   spatialGrid: SpatialHashGrid;
   deltaTime: number;
   now: number;
@@ -311,7 +334,20 @@ function advanceChasingEnemy(enemy: Enemy, context: EnemyAIContext, progress: En
     return;
   }
 
-  if (distanceXZ(enemy.position, targetPlayer.position) <= enemy.attackRange) {
+  const distance = distanceXZ(enemy.position, targetPlayer.position);
+
+  // Pack hunters circle instead of committing while they're still
+  // alone on the target — the "wolves fan out, then all pile in"
+  // beat. Lone mobs and out-of-patience packs fall straight through.
+  if (holdForPack(enemy, targetPlayer.id, distance, context)) {
+    circleTarget(enemy, targetPlayer, context);
+    return;
+  }
+
+  // Stop where this mob wants to FIGHT, not where it can bite: a
+  // caster with a bolt up settles at spell range, a melee mob still
+  // closes to its reach (holdRangeFor collapses to attackRange).
+  if (distance <= holdRangeFor(enemy, context.now)) {
     enemy.aiState = 'attacking';
     enemy.chaseStartedAt = undefined;
     stopEnemy(enemy);
@@ -319,7 +355,31 @@ function advanceChasingEnemy(enemy: Enemy, context: EnemyAIContext, progress: En
     return;
   }
 
-  moveEnemyToward(enemy, targetPlayer.position, context.spatialGrid, context.deltaTime, context.now);
+  moveEnemyTowardAt(enemy, targetPlayer.position, context.now, approachSpeedMul(enemy, context.now));
+}
+
+/** Rally gate — one bounded pack scan, only for archetypes that rally. */
+function holdForPack(enemy: Enemy, targetId: string, distance: number, context: EnemyAIContext): boolean {
+  if (policyFor(enemy).rallyAllies <= 0) return false;
+  const nearbyIds = context.spatialGrid.queryCircle(
+    { x: enemy.position.x, z: enemy.position.z },
+    ENEMY_AI_TUNING.rallyScanRadiusM,
+  );
+  return shouldHoldForPack(enemy, scanPack(enemy, targetId, context.enemies, nearbyIds), distance, context.now);
+}
+
+/** Slide sideways around the target while keeping eyes on it. */
+function circleTarget(enemy: Enemy, targetPlayer: PlayerState, context: EnemyAIContext): void {
+  const policy = policyFor(enemy);
+  const sign = enemy.aiRepositionSign ?? strafeSign(enemy, enemy.chaseStartedAt ?? context.now);
+  enemy.aiRepositionSign = sign;
+  const point = strafePoint(enemy, targetPlayer.position, sign, STRAFE_STEP_M);
+  if (withinLeash(enemy, point, leashDistanceFor(enemy))) {
+    moveEnemyTowardAt(enemy, point, context.now, policy.repositionSpeedMul);
+  } else {
+    stopEnemy(enemy);
+  }
+  faceEnemyToward(enemy, targetPlayer.position);
 }
 
 function advanceAttackingEnemy(enemy: Enemy, context: EnemyAIContext, progress: EnemyAIProgress): void {
@@ -342,15 +402,83 @@ function advanceAttackingEnemy(enemy: Enemy, context: EnemyAIContext, progress: 
     return;
   }
 
-  if (distanceXZ(enemy.position, targetPlayer.position) > enemy.attackRange) {
+  // A support mob that's been worn down breaks off ONCE, falls back
+  // toward spawn and screams the rest of the pack onto its attacker —
+  // the fight changes shape instead of just draining a second HP bar.
+  if (shouldRegroup(enemy)) {
+    breakOffAndRally(enemy, targetPlayer.id, context, progress);
+    return;
+  }
+
+  const distance = distanceXZ(enemy.position, targetPlayer.position);
+  const holdRange = holdRangeFor(enemy, context.now);
+  if (distance > holdRange * ENEMY_AI_TUNING.holdRangeSlackMul) {
     enemy.aiState = 'chasing';
     enemy.chaseStartedAt = context.now;
     progress.shouldBroadcastEnemyUpdate = true;
     return;
   }
 
+  applyAttackIfReady(enemy, targetPlayer, distance, context, progress);
+  applyFightPositioning(enemy, targetPlayer, distance, holdRange, context);
   faceEnemyToward(enemy, targetPlayer.position);
-  applyAttackIfReady(enemy, targetPlayer, context.now, progress);
+}
+
+/** How far a strafing mob slides per reposition. */
+const STRAFE_STEP_M = 4;
+
+/**
+ * Where the mob stands between swings. Three archetype behaviours, in
+ * priority order: finish an in-flight flank dart, give ground while a
+ * ranged option is up, otherwise plant and fight (today's behaviour,
+ * which is what every brawler still does).
+ */
+function applyFightPositioning(
+  enemy: Enemy,
+  targetPlayer: PlayerState,
+  distance: number,
+  holdRange: number,
+  context: EnemyAIContext,
+): void {
+  const policy = policyFor(enemy);
+  const now = context.now;
+  if (enemy.aiRepositionUntilTs !== undefined && enemy.aiRepositionUntilTs > now) {
+    circleTarget(enemy, targetPlayer, context);
+    return;
+  }
+  // Gated on actually HAVING something to throw: a melee-only starter
+  // mob can never run away from a new player who closed on it.
+  const shouldBackpedal = policy.backpedalWithinM > 0
+    && distance < policy.backpedalWithinM
+    && hasReadyRangedOption(enemy, now);
+  if (shouldBackpedal) {
+    const point = backpedalPoint(enemy, targetPlayer.position, holdRange);
+    if (withinLeash(enemy, point, leashDistanceFor(enemy))) {
+      moveEnemyTowardAt(enemy, point, now, policy.repositionSpeedMul);
+      return;
+    }
+  }
+  stopEnemy(enemy);
+}
+
+/** The retreat beat: disengage, suppress re-aggro briefly, call the pack. */
+function breakOffAndRally(
+  enemy: Enemy,
+  targetId: string,
+  context: EnemyAIContext,
+  progress: EnemyAIProgress,
+): void {
+  enemy.hasRegrouped = true;
+  enemy.targetId = null;
+  enemy.chaseStartedAt = undefined;
+  enemy.aiState = 'returning';
+  enemy.aggroSuppressedUntilTs = context.now + ENEMY_AI_TUNING.regroupDisengageMs;
+  stopEnemy(enemy);
+  progress.events.push({ type: 'log', message: `[AI] Enemy ${enemy.id} broke off wounded and called for help` });
+  if (enemy.packId) {
+    progress.events.push({ type: 'packAggro', packId: enemy.packId, targetId, sourceEnemyId: enemy.id });
+  }
+  progress.shouldBroadcastEnemyUpdate = true;
 }
 
 function advanceReturningEnemy(enemy: Enemy, context: EnemyAIContext, progress: EnemyAIProgress): void {
@@ -358,6 +486,7 @@ function advanceReturningEnemy(enemy: Enemy, context: EnemyAIContext, progress: 
   if (distanceFromSpawn <= 1.0) {
     enemy.aiState = 'idle';
     snapEnemyToSpawn(enemy, context.spatialGrid);
+    resetEncounterProgression(enemy);
     if (enemy.isMiniBoss) {
       resetBossProgression(enemy);
     }
@@ -386,6 +515,14 @@ function advanceReturningEnemy(enemy: Enemy, context: EnemyAIContext, progress: 
   }
 }
 
+/** Home again: the next fight starts from a clean behavioural slate. */
+function resetEncounterProgression(enemy: Enemy): void {
+  enemy.hasRegrouped = false;
+  enemy.castsSinceReposition = 0;
+  enemy.aiRepositionUntilTs = undefined;
+  enemy.aiRepositionSign = undefined;
+}
+
 function isAggroSuppressed(enemy: Enemy, now: number): boolean {
   return enemy.aggroSuppressedUntilTs !== undefined && now < enemy.aggroSuppressedUntilTs;
 }
@@ -393,9 +530,11 @@ function isAggroSuppressed(enemy: Enemy, now: number): boolean {
 function applyAttackIfReady(
   enemy: Enemy,
   targetPlayer: PlayerState,
-  now: number,
+  distance: number,
+  context: EnemyAIContext,
   progress: EnemyAIProgress,
 ): void {
+  const now = context.now;
   // Global attack cadence (attackCooldownMs). The actual hit/miss +
   // damage + effects resolve later this tick in the combat phase: the
   // emitter turns this intent into a real cast (castMobSkill) and
@@ -403,24 +542,34 @@ function applyAttackIfReady(
   // enemy drops a target it has killed organically next tick (the dead
   // player is no longer a valid aggro target).
   if (now - enemy.lastAttackTime < enemy.attackCooldownMs) return;
-  const skillId = selectMobSkill(enemy, now);
+  const skillId = selectMobSkillAtRange(enemy, now, distance, (radiusM) => woundedAllyNearby(enemy, radiusM, context));
   if (!skillId) return;
   enemy.lastAttackTime = now;
   progress.events.push({ type: 'castSkill', enemyId: enemy.id, targetId: targetPlayer.id, skillId });
+  noteCastForReposition(enemy, now);
+}
+
+/** Bounded scan, only paid by mobs that actually carry an ally ability. */
+function woundedAllyNearby(enemy: Enemy, radiusM: number, context: EnemyAIContext): boolean {
+  const nearbyIds = context.spatialGrid.queryCircle({ x: enemy.position.x, z: enemy.position.z }, radiusM);
+  return hasWoundedAlly(enemy, context.enemies, nearbyIds, radiusM);
 }
 
 /**
- * The first skill in the mob's priority list that's off its per-skill
- * cooldown. Signature skills are listed first; `mobStrike` (cooldown 0)
- * is the always-ready fallback at the end.
+ * Skirmishers/pack hunters dart to a flank every `strafeAfterCasts`
+ * swings, so they never stand where the player last aimed.
  */
-function selectMobSkill(enemy: Enemy, now: number): SkillId | null {
-  const silenced = isEntitySilenced(enemy, now);
-  for (const id of enemy.skills ?? []) {
-    if (silenced && id !== 'mobStrike') continue;
-    if ((enemy.skillCooldownEndTs?.[id] ?? 0) <= now) return id;
+function noteCastForReposition(enemy: Enemy, now: number): void {
+  const policy = policyFor(enemy);
+  if (policy.strafeAfterCasts <= 0) return;
+  const casts = (enemy.castsSinceReposition ?? 0) + 1;
+  if (casts < policy.strafeAfterCasts) {
+    enemy.castsSinceReposition = casts;
+    return;
   }
-  return null;
+  enemy.castsSinceReposition = 0;
+  enemy.aiRepositionUntilTs = now + policy.strafeMs;
+  enemy.aiRepositionSign = strafeSign(enemy, now);
 }
 
 // §46/slice-3 — emit a packDisengage event when this enemy quits a
@@ -470,6 +619,13 @@ function tickBossProgression(enemy: Enemy, now: number, progress: EnemyAIProgres
     enemy.phaseShifted = true;
     applyBossDamageScaling(enemy);
     enemy.movementSpeed = (enemy.baseMovementSpeed ?? enemy.movementSpeed) * cfg.phaseTwoSpeedMul;
+    // The phase break is a beat the player should FEEL: every ability
+    // comes off cooldown at once (so the signature lands immediately
+    // after the transition) and anything packed with the boss joins in.
+    enemy.skillCooldownEndTs = {};
+    if (enemy.packId && enemy.targetId) {
+      progress.events.push({ type: 'packAggro', packId: enemy.packId, targetId: enemy.targetId, sourceEnemyId: enemy.id });
+    }
     progress.events.push({ type: 'log', message: `[BOSS] ${enemy.name} phase 2 — speed ${enemy.movementSpeed.toFixed(1)}, damage ${enemy.attackDamage.toFixed(1)}` });
     progress.shouldBroadcastEnemyUpdate = true;
   }
