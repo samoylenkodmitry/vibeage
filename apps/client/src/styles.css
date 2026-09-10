@@ -5600,7 +5600,11 @@ button.character-option {
 .awakening-overlay {
   position: fixed;
   inset: 0;
-  z-index: 60;
+  /* Above the first-run welcome card (120) and the panel rail (110): the
+     identity panel is the thing the player just asked for, so nothing the HUD
+     floats may sit on top of its tabs and swallow the clicks. Below the death
+     overlay / error boundary, which must always win. */
+  z-index: 200;
   display: grid;
   place-items: center;
   padding: 20px;

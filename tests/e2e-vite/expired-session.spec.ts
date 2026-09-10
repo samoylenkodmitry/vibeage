@@ -45,9 +45,23 @@ test('an expired saved session still lands in the world — no form, just a way 
   const reclaim = page.getByRole('button', { name: /return as/i });
   await expect(reclaim).toBeVisible();
   await reclaim.click();
-  await expect(page.getByRole('dialog', { name: 'Heroes & account' })).toBeVisible();
-  // Opened on "Return to a hero", and dismissible — the world is still there.
-  await expect(page.locator('#return-login')).toBeVisible();
+
+  const panel = page.getByRole('dialog', { name: 'Heroes & account' });
+  await expect(panel).toBeVisible();
+  // Opened on "Return to a hero" — they came back for a hero they already have.
+  await expect(panel.locator('#return-login')).toBeVisible();
+
+  // Every control is genuinely operable, not merely present: real clicks hit-test
+  // against whatever the HUD floats, so this catches the panel being buried under
+  // another overlay (the first-run welcome card used to outrank it and swallow
+  // these clicks). Typing into the field proves the same for the form itself.
+  await panel.getByRole('tab', { name: /Become someone new/i }).click();
+  await panel.getByRole('tab', { name: /Return to a hero/i }).click();
+  await panel.locator('#return-login').click();
+  await panel.locator('#return-login').fill('e2e-lapsed');
+  await expect(panel.locator('#return-login')).toHaveValue('e2e-lapsed');
+
+  // Dismissible from the keyboard — the world is still there, nothing answered.
   await page.keyboard.press('Escape');
-  await expect(page.getByRole('dialog', { name: 'Heroes & account' })).toHaveCount(0);
+  await expect(panel).toHaveCount(0);
 });
