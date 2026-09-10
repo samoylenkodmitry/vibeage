@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, type Dispatch } from 'react';
 import { Client as ColyseusClient, type Room } from '@colyseus/sdk';
 import { safeParseServerMessage } from '../../../packages/protocol/messages';
+import { renewSavedSessionToken } from './accountSession';
 import { SESSION_EVENTS, WORLD_JOIN_REJECTION } from '../../../packages/protocol/sessionEvents';
 import { PROTOCOL_VERSION } from '../../../packages/protocol/protocolVersion';
 import type { GameClientAction } from './gameReducer';
@@ -200,6 +201,13 @@ function bindRoom(
         `[protocol] server is on v${payload.serverProtocolVersion}; this bundle is on v${PROTOCOL_VERSION}. Consider refreshing.`,
       );
     }
+  });
+  // Sliding session: the server hands back a fresh token when the one we joined
+  // with is getting old. Persisting it here — at the transport edge, for every
+  // join and reconnect — is what keeps a returning player's saved hero alive
+  // instead of expiring them back to the Nameless guest.
+  room.onMessage(SESSION_EVENTS.sessionRenewed, (payload: { token?: string }) => {
+    if (typeof payload?.token === 'string') renewSavedSessionToken(payload.token);
   });
   room.onMessage(SESSION_EVENTS.gameState, (serverState: ServerGameState) => {
     dispatch({ type: 'gameState', state: serverState });

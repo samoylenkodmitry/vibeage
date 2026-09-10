@@ -25,7 +25,24 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
  * no env set, a fixed dev secret is used; production assertions
  * (server/productionEnvAssertions.ts) reject that path.
  */
-const DEFAULT_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+/**
+ * How long an issued token stays valid, and how old it may get before the
+ * world-join hands the client a fresh one.
+ *
+ * These two numbers together are the promise that a player who keeps playing
+ * never has their session die under them: every join more than a day after the
+ * token was minted mints a new one (see `shouldRenewSessionToken`), so the
+ * 30-day window only ever runs down for an account that stops visiting. That
+ * matters because an expired token costs the player their hero — they land in
+ * the world as the Nameless guest and have to log back in to reclaim it.
+ *
+ * Revocation is unaffected: `POST /api/auth/logout` bumps
+ * `accounts.tokens_valid_after`, which invalidates renewed tokens exactly as it
+ * does original ones (a renewal issued before the logout has an older `iat`).
+ */
+const DEFAULT_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+const RENEW_AFTER_MS = 24 * 60 * 60 * 1000; // 1 day
 const DEV_SECRET = 'vibeage-dev-auth-secret-do-not-use-in-prod';
 
 function getSecret(): string {
@@ -62,6 +79,15 @@ export function issueSessionToken(accountId: string, ttlMs: number = DEFAULT_TTL
   const expiry = iat + ttlMs;
   const payload = `${accountId}.${iat}.${expiry}`;
   return `${payload}.${sign(payload)}`;
+}
+
+/**
+ * Should a token this old be swapped for a fresh one on a world join? Pure so
+ * the sliding-session policy is testable without minting or clock-mocking.
+ */
+export function shouldRenewSessionToken(iat: number, now: number = Date.now()): boolean {
+  if (!Number.isFinite(iat)) return false;
+  return now - iat >= RENEW_AFTER_MS;
 }
 
 export function verifySessionToken(token: string): { accountId: string; iat: number } | null {

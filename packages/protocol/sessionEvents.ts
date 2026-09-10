@@ -9,6 +9,15 @@ export const SESSION_EVENTS = {
   gameState: 'gameState',
   playerUpdated: 'playerUpdated',
   enemyUpdated: 'enemyUpdated',
+  /**
+   * Server → client, owner-only: a freshly-minted session token that replaces
+   * the one the client just joined with. Sent when the presented token is
+   * getting on in age, so an account that keeps playing never walks into an
+   * expired session (which would drop them back to the Nameless guest). The
+   * client swaps it into its saved session and carries on — no user-visible
+   * step, and nothing to answer.
+   */
+  sessionRenewed: 'sessionRenewed',
 } as const;
 
 /**

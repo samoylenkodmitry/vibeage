@@ -4,6 +4,7 @@
 //   DISPLAY=:0.0 [TOUR_LOGIN=a TOUR_PASSWORD=a TOUR_CHARACTER=name] \
 //   [ZOOM_NOTCHES=0..5] node scripts/world-tour.mjs <outPrefix> "name:x,z" ...
 import { chromium } from '@playwright/test';
+import { dismissWelcome, enterWorld } from './lib/enter-world.mjs';
 
 const prefix = process.argv[2] || '/tmp/tour';
 const stops = process.argv.slice(3).map((arg) => {
@@ -30,18 +31,15 @@ const page = await browser.newPage({ viewport: { width: 660, height: 440 } });
 const log = (m) => console.log(`[tour] ${m}`);
 try {
   await page.goto('https://vibeage.eu/', { waitUntil: 'domcontentloaded' });
-  await page.locator('#login-input').fill(process.env.TOUR_LOGIN ?? 'a');
-  await page.locator('#password-input').fill(process.env.TOUR_PASSWORD ?? 'a');
-  await page.getByRole('button', { name: /^Continue$/i }).click();
-  try { if (process.env.TOUR_CHARACTER) await page.getByText(process.env.TOUR_CHARACTER, { exact: true }).first().click({ timeout: 6000 }); } catch { /* no character select screen */ }
-  await page.getByRole('button', { name: /Enter World/i }).first().click({ timeout: 20_000 });
-  await page.locator('canvas').waitFor({ state: 'visible', timeout: 30_000 });
-  await page.waitForFunction(() => {
-    const s = window.__VIBEAGE_VITE_E2E__?.getState();
-    return s?.connectionState === 'online' && Boolean(s.myPlayerId);
-  }, undefined, { timeout: 30_000 });
-  log('online');
-  try { await page.getByRole('button', { name: /got it/i }).click({ timeout: 3000 }); } catch { /* no welcome toast */ }
+  // No login screen any more: the page enters the world on its own. The tour
+  // needs GM powers, so it Returns to the account's hero from inside the world.
+  const as = await enterWorld(page, {
+    login: process.env.TOUR_LOGIN ?? 'a',
+    password: process.env.TOUR_PASSWORD ?? 'a',
+    character: process.env.TOUR_CHARACTER,
+  });
+  log(`online as ${as}`);
+  await dismissWelcome(page);
   const respawn = page.getByRole('button', { name: /^Respawn$/i });
   for (let i = 0; i < 3 && await respawn.isVisible().catch(() => false); i += 1) {
     await respawn.click(); await page.waitForTimeout(2500);
