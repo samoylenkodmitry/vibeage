@@ -277,6 +277,7 @@ function WorldEntityMarkers({
           key={enemy.id}
           enemy={enemy}
           isSelected={enemy.id === state.selectedTargetId}
+          playerLevel={state.players[state.myPlayerId]?.level ?? 1}
           activeTimeFields={activeTimeFields}
           onSelect={onSelectTarget}
           onAttack={onAttackTarget}
