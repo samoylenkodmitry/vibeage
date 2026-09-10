@@ -81,13 +81,25 @@ for (const viewport of HUD_VIEWPORTS) {
     await openPanelRail(page); // phones: the toggle rail starts collapsed
     await page.getByRole("button", { name: /show bag/i }).click();
     await expect(page.locator(".inventory-panel")).toBeVisible();
+    // Phones re-collapse the rail once a window opens (it overlaps the window
+    // it just opened), so reach for it again before the next toggle.
+    await openPanelRail(page);
     await page.getByRole("button", { name: /show quest/i }).click();
     await expect(page.locator(".quest-panel")).toBeVisible();
     if (viewport.infoPanelsVisible) {
+      // Desktop keeps its layered multi-window HUD — the bag is still open.
+      await expect(page.locator(".inventory-panel")).toBeVisible();
       // Desktop starts with stats shown, so the toggle reads "Hide Stats".
       await page.getByRole("button", { name: /hide stats/i }).click();
       await expect(page.locator(".player-panel")).toBeHidden();
     } else {
+      // Phones are a modal stack: every window shares one top-anchored slot,
+      // so opening Quest must have closed the Bag rather than burying it.
+      await expect(page.locator(".inventory-panel")).toBeHidden();
+      // One-thumb dismiss: the ✕ Close pill rides above the collapsed rail.
+      await page.getByRole("button", { name: /close open panel/i }).click();
+      await expect(page.locator(".quest-panel")).toBeHidden();
+      await openPanelRail(page);
       // Mobile starts with stats collapsed; the toggle reads "Show Stats".
       await page.getByRole("button", { name: /show stats/i }).click();
       await expect(page.locator(".player-panel")).toBeVisible();

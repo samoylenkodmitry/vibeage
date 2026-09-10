@@ -19,6 +19,8 @@ import { ItemShortcutButton } from './ItemShortcutButton';
 import { useDraggablePanel } from './useDraggablePanel';
 import { useActionBarDrag } from './actionBarDrag';
 import { useHasMousePointer } from './useHasMousePointer';
+import { publishLocalActionFeedback } from './localActionFeedback';
+import { EMPTY_SLOT_HINT, skillSlotRefusal } from './actionRefusal';
 import {
   ACTION_BAR_DRAG_MIME,
   ACTION_DRAG_MIME,
@@ -29,7 +31,12 @@ import {
 
 /** A built-in UI action (Move/Pickup) bound to a bar slot. Skills and items
  *  resolve themselves; these need their label/hotkey/handler from GameHud. */
-export type BuiltinBarAction = { label: string; hotkey: string; icon?: string; disabled: boolean; onInvoke: () => void };
+export type BuiltinBarAction = {
+  label: string; hotkey: string; icon?: string; disabled: boolean;
+  /** Why a tap is refused right now — flashed instead of swallowing the tap. */
+  disabledReason: string | null;
+  onInvoke: () => void;
+};
 
 type SkillBarProps = {
   player: PlayerEntity | null;
@@ -243,6 +250,7 @@ function SkillBarSlot({
       ) : (
         <SkillButton
           skillId={knownSkill}
+          boundUnknownSkill={slot?.kind === 'skill' && !knownSkill}
           hotkey={hotkey} ariaHotkeys={aria}
           player={player} now={now} hasSelectedTarget={hasSelectedTarget}
           onCastSkill={onCastSkill}
@@ -279,7 +287,10 @@ function BarActionButton({
   if (!action) {
     // aria-disabled (not native) so the slot stays draggable/removable.
     return (
-      <button type="button" className={className} aria-disabled aria-label="Empty slot">
+      <button
+        type="button" className={className} aria-disabled aria-label="Empty slot"
+        onClick={() => publishLocalActionFeedback(EMPTY_SLOT_HINT)}
+      >
         <span className="skill-button__hotkey">{hotkey}</span>
         <strong className="skill-button__name">Empty</strong>
       </button>
@@ -296,7 +307,10 @@ function BarActionButton({
         '--cooldown-progress': 0,
         '--skill-icon': action.icon ? `url("${action.icon}")` : 'none',
       } as CSSProperties}
-      onClick={() => { if (!action.disabled) action.onInvoke(); }}
+      onClick={() => {
+        if (action.disabled) publishLocalActionFeedback(action.disabledReason ?? 'That action is unavailable right now.');
+        else action.onInvoke();
+      }}
     >
       <span className="skill-button__hotkey">{hotkey}</span>
       <strong className="skill-button__name">{action.label}</strong>
@@ -306,9 +320,11 @@ function BarActionButton({
 }
 
 function SkillButton({
-  skillId, hotkey, ariaHotkeys, player, now, hasSelectedTarget, onCastSkill, tooltipHandlers, compact,
+  skillId, boundUnknownSkill, hotkey, ariaHotkeys, player, now, hasSelectedTarget, onCastSkill, tooltipHandlers, compact,
 }: {
   skillId: SkillId | null;
+  /** Slot holds a skill ref the player hasn't learned — worth saying out loud. */
+  boundUnknownSkill: boolean;
   hotkey: string;
   ariaHotkeys: string;
   player: PlayerEntity | null;
@@ -321,9 +337,14 @@ function SkillButton({
   const skill = skillId ? SKILLS[skillId] : null;
   const cooldownEnd = skillId ? player?.skillCooldownEndTs?.[skillId] ?? 0 : 0;
   const remainingMs = Math.max(0, cooldownEnd - now);
-  const isReady = remainingMs === 0;
   const needsTarget = Boolean(skill?.requiresTarget && !hasSelectedTarget);
-  const disabled = !skill || !player?.isAlive || !isReady;
+  // aria-disabled, never the native attribute: a natively disabled button
+  // swallows the click, and a tap that does nothing at all is the one failure
+  // mode this HUD refuses to ship. The refusal is spoken instead.
+  const refusal = skillSlotRefusal({
+    skillId, boundUnknownSkill, isAlive: Boolean(player?.isAlive), cooldownRemainingMs: remainingMs,
+  });
+  const disabled = refusal !== null;
   const cooldownProgress = skill ? Math.min(1, remainingMs / skill.cooldownMs) : 0;
   const targetState = needsTarget ? 'needs-target' : skill?.requiresTarget ? 'has-target' : 'self-cast';
   // Pulse the slot for ~600ms whenever a previously-cooling skill
@@ -343,14 +364,17 @@ function SkillButton({
     <button
       type="button"
       className={`skill-button skill-button--${targetState}${remainingMs > 0 ? ' skill-button--cooling' : ''}${compact ? ' skill-button--compact' : ''}`}
-      disabled={disabled}
+      aria-disabled={disabled}
       aria-label={skill ? `Cast ${skill.name}` : 'Empty skill slot'}
       aria-keyshortcuts={ariaHotkeys}
       style={{
         '--cooldown-progress': cooldownProgress,
         '--skill-icon': skill ? `url("${skill.icon}")` : 'none',
       } as CSSProperties}
-      onClick={() => skill && onCastSkill(skill.id)}
+      onClick={() => {
+        if (refusal) publishLocalActionFeedback(refusal);
+        else if (skill) onCastSkill(skill.id);
+      }}
       onContextMenu={(e) => {
         if (!skill) return;
         e.preventDefault();
