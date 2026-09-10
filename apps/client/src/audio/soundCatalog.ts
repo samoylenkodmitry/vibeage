@@ -17,6 +17,7 @@ import {
   travelGainFor,
 } from './sampleMap';
 import { SPELL_ELEMENTS, type Elem } from './skillAudio';
+import { SURFACES, footstepLayers, gustLayers, lapLayers, type Surface } from './surfaces';
 
 /**
  * The in-game **sound library** — every sound the game plays, named and grouped
@@ -186,6 +187,51 @@ const cuesGroup: SoundGroup = {
   })),
 };
 
+// --- Movement & place (sample) ---------------------------------------------
+const SURFACE_LABEL: Record<Surface, string> = {
+  grass: 'Grass — meadow, open field',
+  undergrowth: 'Undergrowth — forest leaf litter',
+  stone: 'Stone — highland, ruins, canyon rock',
+  snow: 'Snow — tundra, the Glacial Vale',
+  sand: 'Sand & ash — shoreline, volcanic grit',
+  bog: 'Bog — wetland muck',
+  water: 'Water — wading, ankle-deep or worse',
+};
+
+/** One playable chip per clip a layer set draws on, at the gain it plays with. */
+function layerVariants(layers: readonly { urls: readonly string[]; gain?: number }[]): SoundVariant[] {
+  return layers.flatMap((layer) => sampleVariants(layer.urls, layer.gain ?? 1));
+}
+
+const movementGroup: SoundGroup = {
+  id: 'movement',
+  title: 'Movement & place (sample)',
+  blurb: 'Footsteps pick their clip from the terrain under you; wind and shore lapping come from where you are standing. All re-pitched from clips the game already ships — the previews play at the in-game level, which is deliberately low.',
+  entries: [
+    ...SURFACES.map((surface): SoundEntry => ({
+      id: `step-${surface}`,
+      title: SURFACE_LABEL[surface],
+      detail: 'Footstep — distance-driven cadence, pitched per foot',
+      tag: 'ui',
+      variants: layerVariants(footstepLayers(surface, 0)),
+    })),
+    {
+      id: 'place-gust',
+      title: 'Wind gust',
+      detail: 'A passing air rush — more often and louder on exposed ridges and shorelines',
+      tag: 'spatial',
+      variants: layerVariants(gustLayers(1)),
+    },
+    {
+      id: 'place-lap',
+      title: 'Shore lapping',
+      detail: 'Water working at a lake or vale shoreline, placed toward the actual water',
+      tag: 'spatial',
+      variants: layerVariants(lapLayers(1)),
+    },
+  ],
+};
+
 // --- Ambient beds (looping samples) ----------------------------------------
 const ambientGroup: SoundGroup = {
   id: 'ambient',
@@ -210,7 +256,7 @@ const ambientGroup: SoundGroup = {
 };
 
 export const SOUND_GROUPS: readonly SoundGroup[] = [
-  castGroup, travelGroup, impactGroup, eventsGroup, cuesGroup, ambientGroup,
+  castGroup, travelGroup, impactGroup, eventsGroup, movementGroup, cuesGroup, ambientGroup,
 ];
 
 /** Every sample url the catalog references via play chips — used by the completeness test. */

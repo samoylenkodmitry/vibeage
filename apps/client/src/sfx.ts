@@ -27,7 +27,17 @@ function getCtx(): AudioContext | null {
     // own per-note scaling and route straight to destination — unchanged.
     masterGain = ctx.createGain();
     masterGain.gain.value = muted ? 0 : volume;
-    masterGain.connect(ctx.destination);
+    // A gentle bus compressor is the difference between "a busy fight" and "a
+    // wall of noise": eight impacts inside a frame phase-add well past the
+    // per-voice ducking, and without this the sum clips into something shrill.
+    // Slow-ish release so it rides the flurry down instead of pumping per hit.
+    const limiter = ctx.createDynamicsCompressor();
+    limiter.threshold.value = -16;
+    limiter.knee.value = 22;
+    limiter.ratio.value = 4;
+    limiter.attack.value = 0.006;
+    limiter.release.value = 0.28;
+    masterGain.connect(limiter).connect(ctx.destination);
     installUnlockHandlers();
   }
   // Chrome/Safari autoplay policy: contexts start 'suspended' until

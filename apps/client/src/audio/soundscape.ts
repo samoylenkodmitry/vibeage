@@ -1,6 +1,9 @@
 import { getAudioContext, getMasterGain } from '../sfx';
+import { startFootsteps } from './footsteps';
+import { startPlaceAudio } from './place';
 import { getSampleBuffer, hasSampleFailed, preloadSamples } from './samples';
 import { AMBIENT_DAY, AMBIENT_NIGHT, AMBIENT_URLS } from './sampleMap';
+import type { PlaceProfile } from './surfaces';
 
 /**
  * Ambient soundscape — two looping CC0 nature beds (OpenGameArt) cross-faded by
@@ -12,6 +15,12 @@ import { AMBIENT_DAY, AMBIENT_NIGHT, AMBIENT_URLS } from './sampleMap';
  * No synthesis: both are real recorded loops, decoded once and looped under the
  * master volume. Everything is gated on a running AudioContext (a user gesture
  * unlocks it), so nothing plays while suspended/headless.
+ *
+ * The same two beds also carry *place*: a lowpass + level per biome (audio/place
+ * feeds them in as you travel) is what stops a canyon sounding like the meadow —
+ * a forest canopy thickens and muffles them, bare highland leaves them thin and
+ * far off and hands the space over to the wind. Starting the soundscape also
+ * starts footsteps and the gust/shore timers, so one mount owns one teardown.
  */
 
 const AMBIENT_LEVEL = 0.4; // ambient mix under the master volume
@@ -34,16 +43,38 @@ let audioCtx: AudioContext | null = null;
 let ambientGain: GainNode | null = null;
 let dayGain: GainNode | null = null;
 let nightGain: GainNode | null = null;
+let placeFilter: BiquadFilterNode | null = null;
 const liveSources: AudioBufferSourceNode[] = [];
 let wireTimer: ReturnType<typeof setTimeout> | null = null;
 let wireAttempts = 0;
 const MAX_WIRE_ATTEMPTS = 40; // ~10s at 250ms — backstop if a fetch hangs without resolving
 
+/** The biome's shaping of the beds — replaced live as the player travels. */
+let place: PlaceProfile = { level: 1, lowpassHz: 20_000, gust: 0.5 };
+let stopPlace: (() => void) | null = null;
+let stopFootsteps: (() => void) | null = null;
+
+function ambientTarget(): number {
+  return enabled ? AMBIENT_LEVEL * place.level : 0;
+}
+
 export function setAmbientEnabled(on: boolean): void {
   enabled = on;
   if (ambientGain && audioCtx) {
-    ambientGain.gain.setTargetAtTime(on ? AMBIENT_LEVEL : 0, audioCtx.currentTime, 0.4);
+    ambientGain.gain.setTargetAtTime(ambientTarget(), audioCtx.currentTime, 0.4);
   }
+}
+
+/**
+ * Cross-fade into a new biome's ambience. Slow (multi-second) on purpose: biome
+ * borders are fuzzy and a player walking along one would otherwise hear the bed
+ * flip back and forth.
+ */
+function applyPlace(next: PlaceProfile): void {
+  place = next;
+  if (!audioCtx) return;
+  ambientGain?.gain.setTargetAtTime(ambientTarget(), audioCtx.currentTime, 2.5);
+  placeFilter?.frequency.setTargetAtTime(next.lowpassHz, audioCtx.currentTime, 2.5);
 }
 
 export function isAmbientEnabled(): boolean {
@@ -71,12 +102,18 @@ export function startSoundscape(): void {
   audioCtx = ctx;
 
   ambientGain = ctx.createGain();
-  ambientGain.gain.value = enabled ? AMBIENT_LEVEL : 0;
-  ambientGain.connect(master);
+  ambientGain.gain.value = ambientTarget();
+  placeFilter = ctx.createBiquadFilter();
+  placeFilter.type = 'lowpass';
+  placeFilter.frequency.value = place.lowpassHz;
+  ambientGain.connect(placeFilter).connect(master);
 
   preloadSamples(AMBIENT_URLS);
   wireAttempts = 0;
   wireBeds();
+
+  stopFootsteps = startFootsteps();
+  stopPlace = startPlaceAudio(applyPlace);
 }
 
 /**
@@ -116,6 +153,10 @@ function loopBed(ctx: AudioContext, buf: AudioBuffer, dest: AudioNode, gain0: nu
 
 export function stopSoundscape(): void {
   running = false;
+  stopPlace?.();
+  stopFootsteps?.();
+  stopPlace = null;
+  stopFootsteps = null;
   if (wireTimer) { clearTimeout(wireTimer); wireTimer = null; }
   for (const src of liveSources) {
     try { src.stop(); src.disconnect(); } catch { /* already stopped */ }
@@ -124,8 +165,10 @@ export function stopSoundscape(): void {
   dayGain?.disconnect();
   nightGain?.disconnect();
   ambientGain?.disconnect();
+  placeFilter?.disconnect();
   dayGain = null;
   nightGain = null;
   ambientGain = null;
+  placeFilter = null;
   audioCtx = null;
 }
