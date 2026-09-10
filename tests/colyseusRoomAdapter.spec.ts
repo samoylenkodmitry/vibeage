@@ -223,6 +223,37 @@ describe('Colyseus room adapter guest onboarding', () => {
     });
     expect(runtimeMetrics.snapshot().counters['room.joinRejected.unauthorized']).toBe(1);
   });
+
+  /**
+   * Sliding session. An expired token costs a player their hero — the join is
+   * rejected and they land as the Nameless guest — so a token that's been in
+   * use for a while is swapped for a fresh one on the way in. Silent: the
+   * client persists it and plays on.
+   */
+  test('hands a returning player a fresh token when theirs is getting old', async () => {
+    const port = makePort({ players: {}, enemies: {} } as ReturnType<AuthoritativeRoomPort['getStateSnapshot']>);
+    const client = makeClient('socket-old');
+    const adapter = new ColyseusAuthoritativeRoomAdapter(port);
+    const { issueSessionToken, verifySessionToken } = await import('../server/auth/sessionTokens');
+
+    // A token minted two days ago: still well inside its TTL, old enough to renew.
+    vi.useFakeTimers();
+    vi.setSystemTime(Date.now() - 2 * 24 * 60 * 60 * 1000);
+    const aging = issueSessionToken('long-lived-account');
+    vi.useRealTimers();
+
+    await expect(adapter.handleJoin(client, {
+      playerName: 'Tester',
+      clientProtocolVersion: 2,
+      sessionToken: aging,
+    })).resolves.toEqual({ playerId: 'player1' });
+
+    const [type, payload] = client.send.mock.calls[0] as [string, { token: string }];
+    expect(type).toBe('sessionRenewed');
+    expect(payload.token).not.toBe(aging);
+    expect(verifySessionToken(payload.token)?.accountId).toBe('long-lived-account');
+    expect(runtimeMetrics.snapshot().counters['room.sessionRenewed']).toBe(1);
+  });
 });
 
 function makeClient(sessionId: string): ColyseusClientLike & { send: ReturnType<typeof vi.fn> } {

@@ -52,8 +52,17 @@ export function saveSession(s: LobbySession | null): void {
   }
 }
 
-export function hasSavedSession(): boolean {
-  return loadSession() !== null;
+/**
+ * Swap in a server-issued replacement token, keeping the login + remembered
+ * hero. The server sends one on a world join once the presented token is
+ * getting old (SESSION_EVENTS.sessionRenewed), which is what stops an active
+ * player's session from ever ageing out under them. A no-op when there's no
+ * saved session — a guest has nothing to renew.
+ */
+export function renewSavedSessionToken(token: string): void {
+  const current = loadSession();
+  if (!current || !token) return;
+  saveSession({ ...current, token });
 }
 
 // Flat result shapes (not discriminated unions): the client tsconfig runs

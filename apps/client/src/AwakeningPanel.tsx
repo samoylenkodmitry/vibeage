@@ -1,4 +1,4 @@
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { RaceClassPicker } from './RaceClassPicker';
 import { authenticate, type LobbySession, type SavedCharacter } from './accountSession';
 import { firstAllowedClass, isValidIdentityName, type BecomeInput } from './onboarding';
@@ -7,37 +7,42 @@ import type { CharacterClass } from '../../../packages/content/classes';
 import type { CharacterRace } from '../../../packages/content/races';
 
 /**
- * The one in-world identity surface — no web screens, ever. It renders both as
- * a full pre-connection screen (its own backdrop) and as an overlay above the
- * live world.
+ * The one in-world identity surface — no web screens, ever. It only ever opens
+ * over a live, playable world, in response to the player clicking the identity
+ * cue; it is never a gate on the way in.
  *
  * - No session → "Become" a brand-new hero, or "Return" (log in) to an account.
  * - A session (just logged in, opened by a real hero, or a remembered account
  *   that hasn't picked a hero) → the hero roster: enter / switch / create /
  *   delete / log out / delete account.
  *
- * `onClose` is provided only when there's a world to go back to (the overlay
- * case); omitted, the ✕ is hidden. `onLogout` clears the session and drops the
- * player back to a Nameless guest.
+ * Because there is always a world behind it, it is always dismissible: the ✕,
+ * Escape, or "keep playing as the Nameless" all put the player back in the
+ * game with nothing answered. `initialMode` picks the opening tab — a player
+ * returning after their session expired lands on "Return", not "Become".
+ * `onLogout` clears the session and drops the player back to a Nameless guest.
  */
 export function AwakeningPanel({
   initialSession = null,
+  initialMode = 'become',
   onEnter,
   onBecome,
   onClose,
   onLogout,
 }: {
   initialSession?: LobbySession | null;
+  initialMode?: 'become' | 'return';
   onEnter: (character: SavedCharacter, session: LobbySession) => void;
   onBecome: (input: BecomeInput) => Promise<{ ok: boolean; error?: string }>;
   onClose?: () => void;
   onLogout: () => void;
 }) {
   const [session, setSession] = useState<LobbySession | null>(initialSession);
-  const [mode, setMode] = useState<'become' | 'return'>('become');
+  const [mode, setMode] = useState<'become' | 'return'>(initialMode);
+  useCloseOnEscape(onClose);
 
   return (
-    <div className="awakening-overlay" role="dialog" aria-modal="true" aria-label="Heroes & account">
+    <div className="awakening-overlay" role="dialog" aria-label="Heroes & account">
       <section className="start-panel awakening-panel">
         <header className="awakening-header">
           <h1>{session ? 'Your Heroes' : 'The Awakening'}</h1>
@@ -51,7 +56,8 @@ export function AwakeningPanel({
           <>
             <p className="lobby-note">
               Play and explore freely as the Nameless — when you Awaken, everything you've done so
-              far carries into your new hero. Or return to a hero you already have.
+              far carries into your new hero. Or return to a hero you already have. Nothing here is
+              required: close this and keep playing whenever you like.
             </p>
             <div className="awakening-tabs" role="tablist">
               <button
@@ -72,9 +78,29 @@ export function AwakeningPanel({
             {mode === 'become' ? <BecomeForm onBecome={onBecome} /> : <ReturnForm onAuthed={setSession} />}
           </>
         )}
+        {onClose && (
+          <button type="button" className="ghost-button awakening-dismiss" onClick={onClose}>
+            ← Keep playing as the Nameless
+          </button>
+        )}
       </section>
     </div>
   );
+}
+
+/**
+ * Escape closes the panel. Part of the "never a wall" contract: whatever the
+ * player opened, one key puts them back in the world with nothing answered.
+ */
+function useCloseOnEscape(onClose?: () => void): void {
+  useEffect(() => {
+    if (!onClose) return;
+    function onKey(event: KeyboardEvent) {
+      if (event.key === 'Escape') onClose();
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
 }
 
 function BecomeForm({ onBecome }: { onBecome: (input: BecomeInput) => Promise<{ ok: boolean; error?: string }> }) {

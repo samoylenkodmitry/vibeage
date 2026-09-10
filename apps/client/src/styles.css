@@ -5581,6 +5581,22 @@ button.character-option {
 }
 @media (prefers-reduced-motion: reduce) { .awaken-cta { animation: none; } }
 
+/* Returning after a saved session died: same cue, cooler tone — this is a way
+   back in, not an invitation to start over. */
+.awaken-cta--reclaim {
+  border-color: rgba(125, 211, 252, 0.5);
+  color: #dbeafe;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4), 0 0 18px rgba(56, 189, 248, 0.18);
+  animation: none;
+}
+.awaken-cta--reclaim strong { color: #e0f2fe; }
+.awaken-cta--reclaim .awaken-cta-spark { color: #7dd3fc; }
+.awaken-cta--reclaim:hover { border-color: rgba(125, 211, 252, 0.85); color: #f0f9ff; }
+
+/* The identity panel sits INSIDE the game — the world keeps running and stays
+   legible behind it, and the panel is always dismissible. A heavier scrim (or
+   a blur that erases the scene) makes it read as a web page you must answer
+   before you may play, which is exactly what this flow is not. */
 .awakening-overlay {
   position: fixed;
   inset: 0;
@@ -5588,11 +5604,17 @@ button.character-option {
   display: grid;
   place-items: center;
   padding: 20px;
-  background: radial-gradient(ellipse at 50% 40%, rgba(4,9,14,0.55) 20%, rgba(4,9,14,0.85) 90%);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  background: radial-gradient(ellipse at 50% 40%, rgba(4,9,14,0.28) 20%, rgba(4,9,14,0.62) 90%);
   overflow: auto;
 }
+.awakening-dismiss {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  font-size: 13px;
+  opacity: 0.75;
+}
+.awakening-dismiss:hover { opacity: 1; }
 .awakening-panel {
   width: min(440px, calc(100vw - 28px));
   max-height: calc(100vh - 40px);

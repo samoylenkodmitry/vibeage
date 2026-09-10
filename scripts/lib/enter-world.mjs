@@ -1,0 +1,52 @@
+// Shared world entry for the local Playwright-driven tooling (world-screenshot,
+// world-tour). The game has no login screen: every page load drops straight
+// into the playable world, as a remembered hero or as the Nameless guest. To
+// drive a *specific* account these scripts do what a player does — enter first,
+// then use the in-world identity panel to Return to a hero.
+//
+// Passing no login leaves the script playing as the guest, which is all most
+// world-art shots need.
+
+export async function waitOnline(page, timeout = 45_000) {
+  await page.locator('canvas').waitFor({ state: 'visible', timeout });
+  await page.waitForFunction(() => {
+    const s = window.__VIBEAGE_VITE_E2E__?.getState();
+    return s?.connectionState === 'online' && Boolean(s.myPlayerId);
+  }, undefined, { timeout });
+}
+
+/**
+ * Land in the world and, when credentials are given, become the named hero via
+ * the in-world identity panel (the ✦ Awaken / ⚜ Heroes button → "Return to a
+ * hero" → roster → Enter). `character` picks a specific hero when the account
+ * has several; omitted, the first in the roster is used.
+ */
+export async function enterWorld(page, { login, password, character } = {}) {
+  await waitOnline(page);
+  if (!login || !password) return 'guest';
+
+  await page.locator('.awaken-cta, .account-button').first().click({ timeout: 20_000 });
+  const panel = page.getByRole('dialog', { name: 'Heroes & account' });
+  await panel.waitFor({ state: 'visible', timeout: 10_000 });
+
+  // A saved session opens straight on the roster; otherwise log in first.
+  const returnTab = panel.getByRole('tab', { name: /Return to a hero/i });
+  if (await returnTab.isVisible().catch(() => false)) {
+    await returnTab.click();
+    await panel.locator('#return-login').fill(login);
+    await panel.locator('#return-password').fill(password);
+    await panel.getByRole('button', { name: /^Continue$/ }).click();
+  }
+
+  const card = character
+    ? panel.locator('li.lobby-card', { hasText: character }).first()
+    : panel.locator('li.lobby-card').first();
+  await card.getByRole('button', { name: /^Enter$/ }).click({ timeout: 20_000 });
+  await waitOnline(page);
+  return 'hero';
+}
+
+/** Dismiss the first-run welcome card so it never lands in a screenshot. */
+export async function dismissWelcome(page) {
+  try { await page.getByRole('button', { name: /got it/i }).click({ timeout: 4000 }); } catch { /* not shown */ }
+}

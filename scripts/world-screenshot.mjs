@@ -1,10 +1,13 @@
 // Headless screenshot of the LIVE world so the dev can self-verify world-art
 // changes instead of shipping blind. CPU rendering (SwiftShader) — does NOT use
-// the machine's GPU. Logs in with the a/a smoke account, enters the world, waits
-// for the scene to settle, and writes a PNG.
+// the machine's GPU. The page drops straight into the world (no login screen),
+// so by default this shoots as the Nameless guest; set SHOT_LOGIN/SHOT_PASSWORD
+// to enter a specific account's hero through the in-world identity panel.
 //
+//   [SHOT_LOGIN=a SHOT_PASSWORD=a [SHOT_CHARACTER=name]] \
 //   node scripts/world-screenshot.mjs [outPath] [waitMs]
 import { chromium } from '@playwright/test';
+import { dismissWelcome, enterWorld } from './lib/enter-world.mjs';
 
 const out = process.argv[2] || '/tmp/world.png';
 const settleMs = Number(process.argv[3] || 9000);
@@ -21,21 +24,14 @@ const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
 const log = (m) => console.log(`[shot] ${m}`);
 try {
   await page.goto(`https://${domain}/`, { waitUntil: 'domcontentloaded' });
-  log('loaded login');
-  await page.locator('#login-input').fill('a');
-  await page.locator('#password-input').fill('a');
-  await page.getByRole('button', { name: /^Continue$/i }).click();
-  log('submitted login');
-  await page.getByRole('button', { name: /Enter World/i }).first().click({ timeout: 20_000 });
-  log('clicked enter world');
-  await page.locator('canvas').waitFor({ state: 'visible', timeout: 30_000 });
-  log('canvas visible');
-  await page.waitForFunction(() => {
-    const s = window.__VIBEAGE_VITE_E2E__?.getState();
-    return s?.connectionState === 'online' && Boolean(s.myPlayerId);
-  }, undefined, { timeout: 30_000 });
-  log('online');
-  try { await page.getByRole('button', { name: /got it/i }).click({ timeout: 4000 }); } catch { /* no welcome */ }
+  log('loaded');
+  const as = await enterWorld(page, {
+    login: process.env.SHOT_LOGIN,
+    password: process.env.SHOT_PASSWORD,
+    character: process.env.SHOT_CHARACTER,
+  });
+  log(`online as ${as}`);
+  await dismissWelcome(page);
   // The smoke account may be dead — respawn to a safe spawn point. Only act if
   // the button is actually present (no fixed wait when already alive).
   const respawn = page.getByRole('button', { name: /^Respawn$/i });

@@ -19,7 +19,7 @@ import {
   sanitizePlayerUpdateForPublic,
 } from './clientState.js';
 import { runtimeMetrics } from '../observability/runtimeMetrics.js';
-import { verifySessionToken } from '../auth/sessionTokens.js';
+import { issueSessionToken, shouldRenewSessionToken, verifySessionToken } from '../auth/sessionTokens.js';
 import { getAccountSummaryById } from '../auth/accountRepository.js';
 import { recordAuthAuditEvent } from '../auth/authAudit.js';
 import {
@@ -57,6 +57,25 @@ type ClientVisibilityContext = {
   socketId: string;
   visibleRegionIds: ReadonlySet<string>;
 };
+
+/**
+ * Sliding session: a player who keeps showing up never has their token die
+ * under them. Once the presented token is a day old we mint a fresh one and
+ * hand it to the client, which swaps it into its saved session silently.
+ *
+ * Without this the TTL is a hard clock: it runs out mid-play-habit, the next
+ * join is rejected, and the player lands in the world as the Nameless guest
+ * having to log back in to reclaim their own hero. Renewal makes expiry
+ * something only an *absent* account can reach.
+ */
+function renewSessionTokenIfStale(
+  client: ColyseusClientLike,
+  session: { accountId: string; iat: number },
+): void {
+  if (!shouldRenewSessionToken(session.iat)) return;
+  client.send(SOCKET_SESSION_EVENTS.sessionRenewed, { token: issueSessionToken(session.accountId) });
+  runtimeMetrics.increment('room.sessionRenewed');
+}
 
 export class ColyseusAuthoritativeRoomAdapter {
   constructor(private readonly port: AuthoritativeRoomPort) {}
@@ -133,6 +152,7 @@ export class ColyseusAuthoritativeRoomAdapter {
         { initialRace: options.initialRace, initialClass: options.initialClass, accountId: session.accountId, accountLogin },
       );
       runtimeMetrics.increment('room.joins');
+      renewSessionTokenIfStale(client, session);
       void recordAuthAuditEvent({
         type: 'character.selected',
         accountId: session.accountId,
