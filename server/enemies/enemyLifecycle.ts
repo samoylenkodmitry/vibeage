@@ -1,4 +1,5 @@
 import { DEFAULT_PACK_AGGRO_RADIUS_M, ENEMY_BASE_SCALING, getEnemyTemplate, resolveEnemyCombat } from '../../packages/content/enemies.js';
+import { enemySkillsWithArchetype } from '../../packages/content/enemiesAi.js';
 import { getTerrainHeight } from '../../packages/content/terrain.js';
 import type { MobSpawnConfig, ZoneManager, ZoneMiniBoss } from '../../packages/content/zones.js';
 import { WORLD_SPAWN_BUDGETS } from '../../packages/content/zoneSpawnBudget.js';
@@ -88,9 +89,12 @@ export function createEnemy(
     // these through the shared pipeline (priority order; mobStrike fallback).
     // A mini-boss leads with its signature skill (generated from the boss
     // spec); the basic strikes from the template fill the gaps.
+    // Archetype grants come ahead of the template's own list (a brute
+    // reaches for its cleave before its strike); a boss signature still
+    // outranks everything.
     skills: options.bossId
-      ? [bossSignatureSkillId(options.bossId), ...template.skills]
-      : [...template.skills],
+      ? [bossSignatureSkillId(options.bossId), ...enemySkillsWithArchetype(template)]
+      : enemySkillsWithArchetype(template),
     skillCooldownEndTs: {},
     attackRange: S.attackRange * template.stats.attackRange,
     baseExperienceValue: baseExp,

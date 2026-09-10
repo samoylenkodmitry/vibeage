@@ -145,6 +145,22 @@ export interface Enemy {
    * instantly re-target the same player and undo the give-up.
    */
   aggroSuppressedUntilTs?: number;
+  /**
+   * Encounter variety — reposition window. While `now` is below this the
+   * mob is mid-flank-dart (see `EnemyAiPolicy.strafeAfterCasts`) and
+   * moves sideways instead of standing in the target's face.
+   * `aiRepositionSign` picks the side, deterministically per mob.
+   */
+  aiRepositionUntilTs?: number;
+  aiRepositionSign?: number;
+  /** Casts landed since the last reposition; drives the strafe cadence. */
+  castsSinceReposition?: number;
+  /**
+   * Set once a `support` mob has broken off at low HP and called for
+   * help, so a fight has one retreat beat rather than an endless
+   * fall-back loop. Reset on return-to-spawn / respawn.
+   */
+  hasRegrouped?: boolean;
   packId?: string;
   /**
    * §46/slice-3 — per-mob pack aggro/disengage radius. When this
